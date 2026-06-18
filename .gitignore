@@ -1,0 +1,28 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# builds
+dist/
+build/
+.next/
+out/
+
+# turbo
+.turbo/
+
+# env
+.env
+.env.*
+!.env.example
+
+# flutter / dart
+apps/mobile/.dart_tool/
+apps/mobile/build/
+apps/mobile/.flutter-plugins
+apps/mobile/.flutter-plugins-dependencies
+apps/mobile/ios/Pods/
+
+# misc
+.DS_Store
+*.log
