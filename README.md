@@ -46,3 +46,36 @@ flutter run
 
 > Turbo also exposes `pnpm dev:mobile`, which calls `flutter run` for you,
 > but launching from `apps/mobile` gives you Flutter's interactive hot-reload.
+
+## Features
+
+### AI recommendation engine (v1)
+
+Turns an account's energy profile into an energy health score (0-100) and a
+list of impact-ranked "Priority Actions". v1 is **rule-based** — no API key
+or cost — but it sits behind a provider-agnostic interface so a hosted LLM
+(Gemini / OpenAI) can replace it later without changing anything else.
+
+- **Engine:** `apps/api/src/engine/`
+  - `recommendationEngine.ts` — the `RecommendationEngine` interface (the seam).
+  - `ruleBasedEngine.ts` — v1 implementation: scores a profile and applies
+    five transparent rules (usage vs peers, evening-peak share, high baseline
+    draw, non-inverter appliances, aging appliances).
+  - `index.ts` — factory; the single place to swap in an LLM engine later
+    (switch on `AI_PROVIDER`).
+- **API:** `apps/api/src/routes/recommendations.ts`
+  - `POST /api/recommendations` — JSON body is an `EnergyProfile`. Required:
+    `accountName`, `kwhUsed`, `amount`. Optional: `peerAverageKwh`,
+    `baselineKwh`, `eveningUsageSharePct`, `appliances[]`. Returns the score,
+    peer benchmark, and recommendations (plus which `engine` produced them).
+
+Example:
+
+```bash
+pnpm dev:api   # api on :4000
+curl -X POST http://localhost:4000/api/recommendations \
+  -H "Content-Type: application/json" \
+  -d '{"accountName":"Cafe Marie","kwhUsed":312,"amount":1785.5,
+       "peerAverageKwh":265,"baselineKwh":60,"eveningUsageSharePct":38,
+       "appliances":[{"type":"Air Conditioner","count":2,"isInverter":false,"ageYears":9}]}'
+```
