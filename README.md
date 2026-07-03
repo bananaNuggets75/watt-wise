@@ -46,3 +46,29 @@ flutter run
 
 > Turbo also exposes `pnpm dev:mobile`, which calls `flutter run` for you,
 > but launching from `apps/mobile` gives you Flutter's interactive hot-reload.
+
+## Features
+
+### Utility bill upload / input module
+
+Lets a user record an electricity bill by uploading an optional scan and
+entering the numbers manually (no OCR yet — that's a later phase).
+
+- **Web UI:** `apps/web/src/features/bill-upload/` — the "Scan Your Bill"
+  screen (file dropzone + manual entry form).
+- **API:** `apps/api/src/routes/bills.ts`
+  - `POST /api/bills` — multipart form: optional file (JPG/PNG/PDF, max
+    10 MB) plus fields `accountName`, `provider`, `kwhUsed`, `amount`,
+    `periodStart`, `periodEnd`. Returns the stored bill or a 400 with a
+    per-field error list.
+  - `GET /api/bills` — list all bills (newest first).
+  - `GET /api/bills/:id` — fetch one bill.
+
+Storage is in-memory for now (`apps/api/src/store/billStore.ts`); it resets
+on restart and will be swapped for Supabase later.
+
+Run both apps together and open the web app:
+
+```bash
+pnpm dev          # web (:5173) + api (:4000)
+```
