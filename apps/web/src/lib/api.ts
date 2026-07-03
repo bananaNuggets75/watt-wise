@@ -35,13 +35,14 @@ export interface BillFormData {
 
 /** Error thrown for non-2xx responses, carrying the API's error payload. */
 export class ApiError extends Error {
-  constructor(
-    message: string,
-    readonly status: number,
-    readonly details?: string[],
-  ) {
+  status: number;
+  details?: string[];
+
+  constructor(message: string, status: number, details?: string[]) {
     super(message);
     this.name = "ApiError";
+    this.status = status;
+    this.details = details;
   }
 }
 
