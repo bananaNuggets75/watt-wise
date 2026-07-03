@@ -1,0 +1,147 @@
+/* Styles for the bill upload / input screen.
+   Loosely follows the mockup's light theme with a green accent. Scoped
+   under .bill-upload so it won't collide with other feature styles. */
+
+.bill-upload {
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 24px 20px 48px;
+  color: #1a1a1a;
+  text-align: left;
+}
+
+.bill-upload__title {
+  font-size: 1.6rem;
+  font-weight: 700;
+  text-align: center;
+  margin: 8px 0 4px;
+}
+
+.bill-upload__subtitle {
+  text-align: center;
+  color: #6b7280;
+  font-size: 0.9rem;
+  margin: 0 0 20px;
+}
+
+/* Dashed dropzone box, matching the mockup's upload area. */
+.dropzone {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 28px 16px;
+  border: 2px dashed #9bcf9b;
+  border-radius: 14px;
+  background: #eef7ee;
+  color: #2f5233;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.dropzone:hover {
+  background: #e4f1e4;
+  border-color: #7cc07c;
+}
+
+.dropzone__icon {
+  width: 28px;
+  height: 28px;
+}
+
+.dropzone__label {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.dropzone__hint {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+/* Manual entry form. */
+.bill-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 20px;
+}
+
+.bill-form__row {
+  display: flex;
+  gap: 12px;
+}
+
+.bill-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.bill-form__field input {
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-weight: 400;
+  color: #1a1a1a;
+  background: #fff;
+}
+
+.bill-form__field input:focus {
+  outline: none;
+  border-color: #7cc07c;
+  box-shadow: 0 0 0 3px rgba(124, 192, 124, 0.25);
+}
+
+.bill-form__submit {
+  margin-top: 6px;
+  padding: 13px;
+  border: none;
+  border-radius: 12px;
+  background: #111;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.bill-form__submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Feedback messages. */
+.bill-upload__error,
+.bill-upload__error-list {
+  color: #b91c1c;
+  font-size: 0.85rem;
+}
+
+.bill-upload__error-list {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.bill-upload__success {
+  color: #15803d;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+/* Accessible hidden native file input (triggered by the dropzone). */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
