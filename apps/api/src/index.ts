@@ -3,6 +3,7 @@ import express, { type NextFunction, type Request, type Response } from "express
 import cors from "cors";
 import { MulterError } from "multer";
 import { billsRouter } from "./routes/bills.js";
+import { recommendationsRouter } from "./routes/recommendations.js";
 
 const app = express();
 const PORT = process.env.PORT ?? 4000;
@@ -18,9 +19,13 @@ app.get("/health", (_req, res) => {
 // Utility bill upload / input module.
 app.use("/api/bills", billsRouter);
 
+// AI recommendation engine (v1).
+app.use("/api/recommendations", recommendationsRouter);
+
 /**
- * Central error handler. It translates the two failure modes that the bill
- * upload can hit into clean 400 responses instead of a generic 500:
+ * Central error handler. Must be registered after the routes. It translates
+ * the two failure modes that the bill upload can hit into clean 400
+ * responses instead of a generic 500:
  *   - multer LIMIT_FILE_SIZE   -> file over the 10 MB cap
  *   - our fileFilter rejection -> unsupported file type
  * Anything else falls through to a 500.
