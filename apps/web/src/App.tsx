@@ -1,4 +1,5 @@
-import { BillUpload } from "./features/bill-upload/BillUpload";
+import { Outlet } from "react-router";
+
 import "./App.css";
 
 /**
@@ -13,7 +14,7 @@ function App() {
         <span className="app__brand">WattWise</span>
       </header>
       <main>
-        <BillUpload />
+        <Outlet />
       </main>
     </div>
   );

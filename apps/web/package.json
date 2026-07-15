@@ -10,8 +10,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "material-symbols": "^0.45.5",
     "react": "^19.2.6",
-    "react-dom": "^19.2.6"
+    "react-dom": "^19.2.6",
+    "react-router": "^8.1.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

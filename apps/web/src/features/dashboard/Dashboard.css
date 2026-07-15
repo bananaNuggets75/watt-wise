@@ -1,0 +1,231 @@
+/* block__elem--mod */
+p {
+  margin: 0;
+}
+
+.dashboard {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 12px;
+  color: #1a1a1a;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dashboard__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.dashboard__card {
+  padding: 16px;
+  border-radius: 24px;
+  background-color: #e9eee5;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dashboard__card--green {
+  background-color: #b8eeaa;
+}
+
+.card__header {
+  display: flex;
+  align-items: center;
+}
+
+.card__title {
+  font-size: 20px;
+  font-weight: bold;
+  width: 100%;
+  margin: 0px;
+}
+
+.dashboard__button--with-icon {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+}
+
+.dashboard__button {
+  border: none;
+  cursor: pointer;
+  padding: 16px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: bold;
+  box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.25);
+  transition: 100ms all;
+}
+
+.dashboard__button:active {
+  transform: scale(0.98);
+  box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.25);
+}
+
+.dashboard__button--primary {
+  background-color: #142014;
+  color: white;
+}
+
+.selector {
+  background-color: white;
+  padding: 8px;
+  border-radius: 24px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+}
+
+.selector__label {
+  font-size: 16px;
+  font-weight: bold;
+  padding: 0px 4px;
+}
+
+.selector__avatar {
+  height: 32px;
+  width: 32px;
+  background-color: #b8eeaa;
+  border-radius: 100%;
+}
+
+.health-card__content {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.health-card__percentage {
+  font-size: 28px;
+  line-height: 16px;
+}
+
+.health-card__status {
+  border-radius: 9999px;
+  background-color: white;
+  padding: 4px 8px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+}
+
+.icon--large {
+  font-size: 28px !important;
+  font-variation-settings: "opsz" 48;
+}
+
+.icon--filled {
+  font-variation-settings: "FILL" 100;
+}
+
+.icon--color-primary {
+  color: #436548;
+}
+
+.quick-links {
+  width: 100%;
+  display: grid;
+  grid: auto / auto auto auto;
+  gap: 4px;
+  margin: 0px;
+}
+
+.quick-links__item {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  font-size: 11px;
+  gap: 4px;
+  padding: 8px 4px;
+  font-weight: bold;
+  user-select: none;
+  cursor: pointer;
+  border-radius: 12px;
+}
+
+.quick-links__item:hover {
+  background-color: #d0d4cc;
+}
+
+.priority-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  list-style: none;
+  padding: 0;
+}
+
+.priority-list__item {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.priority-list__text {
+  line-clamp: 1;
+  overflow: hidden;
+  font-size: 16px;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+
+.priority-list__indicator {
+  height: 12px;
+  width: 12px;
+  border-radius: 50%;
+}
+.priority-list__indicator--high {
+  background-color: #fca191;
+}
+.priority-list__indicator--med {
+  background-color: #eecbaa;
+}
+
+.text--muted {
+  color: #777a74;
+}
+
+.monthly-card__placeholder {
+  background-color: #d0d4cc;
+  height: 160px;
+  border-radius: 12px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.stats {
+  width: 100%;
+  display: grid;
+  grid: auto / auto auto;
+  gap: 4px;
+  margin: 0px;
+}
+
+.stats__card {
+  height: 96px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.stats__label {
+  font-size: 14px;
+}
+
+.stats__value {
+  font-size: 24px;
+  font-weight: bold;
+  line-height: 16px;
+  letter-spacing: 0.5px;
+}
