@@ -85,6 +85,7 @@ export async function listBills(): Promise<Bill[]> {
 
 /** Best-effort fields the OCR scan suggests (any may be absent). */
 export interface ScanResult {
+  accountName?: string;
   kwhUsed?: number;
   amount?: number;
   provider?: string;

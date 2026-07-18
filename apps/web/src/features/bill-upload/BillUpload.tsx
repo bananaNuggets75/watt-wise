@@ -57,6 +57,7 @@ export function BillUpload() {
       const found: string[] = [];
       setForm((prev) => {
         const next = { ...prev };
+        if (scan.accountName) { next.accountName = scan.accountName; found.push("account name"); }
         if (scan.provider) { next.provider = scan.provider; found.push("provider"); }
         if (scan.kwhUsed !== undefined) { next.kwhUsed = String(scan.kwhUsed); found.push("kWh"); }
         if (scan.amount !== undefined) { next.amount = String(scan.amount); found.push("amount"); }

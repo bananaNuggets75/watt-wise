@@ -15,13 +15,15 @@ import Tesseract from "tesseract.js";
 
 /** Best-effort fields extracted from a bill's text, plus the raw OCR text. */
 export interface OcrResult {
+  /** Account holder / customer name printed on the bill, if found. */
+  accountName?: string;
   /** Energy used in kWh, if a value could be confidently located. */
   kwhUsed?: number;
   /** Total amount billed, if found. */
   amount?: number;
   /** Provider name, if a known one is recognised. */
   provider?: string;
-  /** The full text Tesseract read — useful for debugging / manual review. */
+  /** The full text the OCR engine read — useful for debugging / review. */
   rawText: string;
 }
 

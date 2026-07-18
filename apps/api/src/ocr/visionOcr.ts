@@ -23,7 +23,8 @@ const DEFAULT_MODEL = "nvidia/nemotron-nano-12b-v2-vl:free";
 /** Instruction to the model. Kept strict so the reply is easy to parse. */
 const PROMPT = `You are reading a Philippine electricity bill from an image.
 Extract these fields and reply with ONLY a JSON object (no markdown, no prose):
-{"provider": string|null, "kwhUsed": number|null, "amount": number|null}
+{"accountName": string|null, "provider": string|null, "kwhUsed": number|null, "amount": number|null}
+- accountName: the account holder / customer name printed on the bill (e.g. "Buskowitz, Henry").
 - provider: the electric utility company name (e.g. "Meralco").
 - kwhUsed: total electricity consumed in kWh for this bill, as a number (no units).
 - amount: total amount due, as a number (no currency symbol, no thousands separators).
@@ -107,6 +108,7 @@ export async function scanBillWithVision(
   // Parse the model's JSON; leave fields undefined if it didn't comply.
   const parsed = extractJson(rawText) ?? {};
   return {
+    accountName: typeof parsed.accountName === "string" ? parsed.accountName : undefined,
     provider: typeof parsed.provider === "string" ? parsed.provider : undefined,
     kwhUsed: toNumber(parsed.kwhUsed),
     amount: toNumber(parsed.amount),
