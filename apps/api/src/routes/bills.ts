@@ -15,7 +15,7 @@
 import { Router } from "express";
 import multer from "multer";
 import { createBill, getBill, listBills } from "../store/billStore.js";
-import { scanBill } from "../ocr/billOcr.js";
+import { getBillScanner } from "../ocr/index.js";
 import type { BillFileMeta, BillInput } from "../types/bill.js";
 
 export const billsRouter = Router();
@@ -131,8 +131,16 @@ billsRouter.post("/scan", uploadImage.single("file"), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: "NO_IMAGE", message: "Attach a JPG or PNG image to scan." });
   }
-  const result = await scanBill(req.file.buffer);
-  return res.json(result);
+  // The scanner (Tesseract or OpenRouter vision) is chosen by the factory.
+  const scanner = getBillScanner();
+  try {
+    const result = await scanner.scan(req.file.buffer, req.file.mimetype);
+    return res.json({ engine: scanner.name, ...result });
+  } catch (err) {
+    // A scan failure isn't fatal — the web UI falls back to manual entry.
+    console.error(`[ocr] ${scanner.name} scan failed:`, err);
+    return res.status(502).json({ error: "SCAN_FAILED", message: "Could not read the image." });
+  }
 });
 
 /** GET /api/bills — list every stored bill, newest first. */
