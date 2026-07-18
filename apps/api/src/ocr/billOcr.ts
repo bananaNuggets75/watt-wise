@@ -23,6 +23,10 @@ export interface OcrResult {
   amount?: number;
   /** Provider name, if a known one is recognised. */
   provider?: string;
+  /** Billing period start as an ISO date (YYYY-MM-DD), if found. */
+  periodStart?: string;
+  /** Billing period end as an ISO date (YYYY-MM-DD), if found. */
+  periodEnd?: string;
   /** The full text the OCR engine read — useful for debugging / review. */
   rawText: string;
 }

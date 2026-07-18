@@ -61,6 +61,8 @@ export function BillUpload() {
         if (scan.provider) { next.provider = scan.provider; found.push("provider"); }
         if (scan.kwhUsed !== undefined) { next.kwhUsed = String(scan.kwhUsed); found.push("kWh"); }
         if (scan.amount !== undefined) { next.amount = String(scan.amount); found.push("amount"); }
+        if (scan.periodStart) { next.periodStart = scan.periodStart; found.push("period"); }
+        if (scan.periodEnd) { next.periodEnd = scan.periodEnd; }
         return next;
       });
       setScanNote(

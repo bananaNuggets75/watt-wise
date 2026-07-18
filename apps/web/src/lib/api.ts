@@ -89,6 +89,8 @@ export interface ScanResult {
   kwhUsed?: number;
   amount?: number;
   provider?: string;
+  periodStart?: string;
+  periodEnd?: string;
   rawText: string;
 }
 

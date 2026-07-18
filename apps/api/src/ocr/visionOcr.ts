@@ -23,12 +23,22 @@ const DEFAULT_MODEL = "nvidia/nemotron-nano-12b-v2-vl:free";
 /** Instruction to the model. Kept strict so the reply is easy to parse. */
 const PROMPT = `You are reading a Philippine electricity bill from an image.
 Extract these fields and reply with ONLY a JSON object (no markdown, no prose):
-{"accountName": string|null, "provider": string|null, "kwhUsed": number|null, "amount": number|null}
+{"accountName": string|null, "provider": string|null, "kwhUsed": number|null, "amount": number|null, "periodStart": string|null, "periodEnd": string|null}
 - accountName: the account holder / customer name printed on the bill (e.g. "Buskowitz, Henry").
 - provider: the electric utility company name (e.g. "Meralco").
 - kwhUsed: total electricity consumed in kWh for this bill, as a number (no units).
 - amount: total amount due, as a number (no currency symbol, no thousands separators).
+- periodStart: billing period start date, formatted strictly as YYYY-MM-DD (e.g. "23 Dec 2022" -> "2022-12-23").
+- periodEnd: billing period end date, formatted strictly as YYYY-MM-DD.
 Use null for any field you cannot read.`;
+
+/** Accept a value only if it's a strict ISO date (YYYY-MM-DD); else undefined.
+ *  Keeps malformed dates out of the form's <input type="date">. */
+function toIsoDate(value: unknown): string | undefined {
+  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value.trim())
+    ? value.trim()
+    : undefined;
+}
 
 /** Coerce a model value ("1,490.07", 1490.07, null) into a number or undefined. */
 function toNumber(value: unknown): number | undefined {
@@ -112,6 +122,8 @@ export async function scanBillWithVision(
     provider: typeof parsed.provider === "string" ? parsed.provider : undefined,
     kwhUsed: toNumber(parsed.kwhUsed),
     amount: toNumber(parsed.amount),
+    periodStart: toIsoDate(parsed.periodStart),
+    periodEnd: toIsoDate(parsed.periodEnd),
     rawText,
   };
 }
