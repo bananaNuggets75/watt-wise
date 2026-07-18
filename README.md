@@ -68,13 +68,22 @@ the numbers manually. Uploading an **image** runs OCR to pre-fill the form.
   - `GET /api/bills` — list all bills (newest first).
   - `GET /api/bills/:id` — fetch one bill.
 
-**OCR** uses Tesseract.js (`apps/api/src/ocr/billOcr.ts`) — local, no API key
-or cost. It reads the image text and best-effort regex extracts the numbers;
-`parseBillText` is a pure, tested function. Accuracy varies with photo
-quality, so OCR only pre-fills the form — manual entry is always the
-fallback. PDFs are accepted for storage but not OCR'd (Tesseract reads raster
-images only). Tesseract downloads its English language data on first scan and
-caches it, so the first request is slower.
+**OCR** has two swappable engines (`apps/api/src/ocr/`), selected by
+`OCR_PROVIDER` (defaults to `openrouter` when `OPENROUTER_API_KEY` is set,
+else `tesseract`). Either way OCR only *pre-fills* the form — manual entry is
+always the fallback, and PDFs are stored but not OCR'd (images only).
+
+- **`openrouter`** (`visionOcr.ts`) — a vision LLM
+  (`nvidia/nemotron-nano-12b-v2-vl:free` by default) reads the bill layout
+  directly and returns the fields as JSON. Much more accurate on real bill
+  photos. Requires `OPENROUTER_API_KEY`.
+  **Caveat:** the default is a *free* endpoint that **logs inputs** for
+  training — a bill has personal data, so this is **dev/demo only**. Use a
+  paid, no-logging model (`OCR_MODEL`) for real user data.
+- **`tesseract`** (`billOcr.ts`) — local, no key, no logging. Best-effort
+  regex parsing (`parseBillText`, unit-tested). Weaker on messy photos, and
+  downloads its English language data on first scan (slower first request).
+  Good offline fallback.
 
 Storage is in-memory for now (`apps/api/src/store/billStore.ts`); it resets
 on restart and will be swapped for Supabase later.
