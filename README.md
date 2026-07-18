@@ -51,18 +51,30 @@ flutter run
 
 ### Utility bill upload / input module
 
-Lets a user record an electricity bill by uploading an optional scan and
-entering the numbers manually (no OCR yet — that's a later phase).
+Lets a user record an electricity bill by uploading a photo and/or entering
+the numbers manually. Uploading an **image** runs OCR to pre-fill the form.
 
 - **Web UI:** `apps/web/src/features/bill-upload/` — the "Scan Your Bill"
-  screen (file dropzone + manual entry form).
+  screen (file dropzone + manual entry form). Selecting a JPG/PNG scans it
+  and auto-fills provider/kWh/amount; the user verifies before saving.
 - **API:** `apps/api/src/routes/bills.ts`
   - `POST /api/bills` — multipart form: optional file (JPG/PNG/PDF, max
     10 MB) plus fields `accountName`, `provider`, `kwhUsed`, `amount`,
     `periodStart`, `periodEnd`. Returns the stored bill or a 400 with a
     per-field error list.
+  - `POST /api/bills/scan` — multipart form with a `file` (JPG/PNG only).
+    OCRs the image and returns suggested `{ kwhUsed, amount, provider,
+    rawText }` without saving. Returns 400 if no image is sent.
   - `GET /api/bills` — list all bills (newest first).
   - `GET /api/bills/:id` — fetch one bill.
+
+**OCR** uses Tesseract.js (`apps/api/src/ocr/billOcr.ts`) — local, no API key
+or cost. It reads the image text and best-effort regex extracts the numbers;
+`parseBillText` is a pure, tested function. Accuracy varies with photo
+quality, so OCR only pre-fills the form — manual entry is always the
+fallback. PDFs are accepted for storage but not OCR'd (Tesseract reads raster
+images only). Tesseract downloads its English language data on first scan and
+caches it, so the first request is slower.
 
 Storage is in-memory for now (`apps/api/src/store/billStore.ts`); it resets
 on restart and will be swapped for Supabase later.
