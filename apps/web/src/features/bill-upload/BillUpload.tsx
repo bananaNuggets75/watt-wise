@@ -1,14 +1,16 @@
 /**
  * Bill upload / input screen (web).
  *
- * Mirrors the "Scan Your Bill" mockup: a file dropzone for an optional
- * scan (JPG/PNG/PDF, 10 MB) plus a manual entry form for the numbers the
- * MVP actually relies on (no OCR yet). On submit it calls the API client,
- * which posts everything as multipart/form-data.
+ * Mirrors the "Scan Your Bill" mockup: a file dropzone plus a manual entry
+ * form. When the dropped file is an image (JPG/PNG), it's sent to the OCR
+ * endpoint and the recognised values pre-fill the form — the user then
+ * verifies/corrects before saving. Manual entry is always the fallback, so
+ * a bad scan never blocks the user. On submit everything is posted as
+ * multipart/form-data via the API client.
  */
 
 import { useRef, useState } from "react";
-import { ApiError, createBill, type BillFormData } from "../../lib/api";
+import { ApiError, createBill, scanBill, type BillFormData } from "../../lib/api";
 import "./BillUpload.css";
 
 // Client-side mirror of the server's file rules, so we can reject bad
@@ -33,6 +35,8 @@ export function BillUpload() {
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
+  const [scanning, setScanning] = useState(false);
+  const [scanNote, setScanNote] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   /** Update one field of the manual form as the user types. */
@@ -40,9 +44,40 @@ export function BillUpload() {
     setForm((prev) => ({ ...prev, [field]: value }));
   }
 
+  /**
+   * Send an image to the OCR endpoint and pre-fill any fields it recognised.
+   * Only non-empty suggestions overwrite the form, so a partial scan still
+   * helps. Failures are swallowed to a note — the user can always type it in.
+   */
+  async function autoFillFromScan(image: File) {
+    setScanning(true);
+    setScanNote(null);
+    try {
+      const scan = await scanBill(image);
+      const found: string[] = [];
+      setForm((prev) => {
+        const next = { ...prev };
+        if (scan.provider) { next.provider = scan.provider; found.push("provider"); }
+        if (scan.kwhUsed !== undefined) { next.kwhUsed = String(scan.kwhUsed); found.push("kWh"); }
+        if (scan.amount !== undefined) { next.amount = String(scan.amount); found.push("amount"); }
+        return next;
+      });
+      setScanNote(
+        found.length > 0
+          ? `Auto-filled ${found.join(", ")} from the scan — please double-check.`
+          : "Couldn't read the numbers from that image — enter them manually below.",
+      );
+    } catch {
+      setScanNote("Scan failed — enter the numbers manually below.");
+    } finally {
+      setScanning(false);
+    }
+  }
+
   /** Validate a chosen file against the same rules the server enforces. */
   function handleFile(selected: File | null) {
     setFileError(null);
+    setScanNote(null);
     if (!selected) {
       setFile(null);
       return;
@@ -56,6 +91,11 @@ export function BillUpload() {
       return;
     }
     setFile(selected);
+    // Images can be OCR'd to pre-fill the form; PDFs can't (Tesseract reads
+    // raster images only), so they're just attached for record-keeping.
+    if (selected.type === "image/jpeg" || selected.type === "image/png") {
+      void autoFillFromScan(selected);
+    }
   }
 
   /** Submit the form to the API and reflect success/failure in the UI. */
@@ -86,14 +126,16 @@ export function BillUpload() {
     <div className="bill-upload">
       <h1 className="bill-upload__title">Scan Your Bill</h1>
       <p className="bill-upload__subtitle">
-        Upload a photo or PDF of your electricity bill, then confirm the numbers below.
+        Upload a photo of your electricity bill to auto-fill the form, or enter
+        the numbers manually below.
       </p>
 
-      {/* File dropzone — optional scan for record-keeping. */}
+      {/* File dropzone — an image gets OCR'd to pre-fill the form. */}
       <button
         type="button"
         className="dropzone"
         onClick={() => fileInputRef.current?.click()}
+        disabled={scanning}
       >
         {/* Upload icon (inline SVG, not emoji, per project convention). */}
         <svg className="dropzone__icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -102,7 +144,9 @@ export function BillUpload() {
             d="M11 16V7.85l-2.6 2.6L7 9l5-5 5 5-1.4 1.45-2.6-2.6V16h-2Zm-6 4a2 2 0 0 1-2-2v-3h2v3h14v-3h2v3a2 2 0 0 1-2 2H5Z"
           />
         </svg>
-        <span className="dropzone__label">{file ? file.name : "Upload from File"}</span>
+        <span className="dropzone__label">
+          {scanning ? "Scanning…" : file ? file.name : "Upload from File"}
+        </span>
         <span className="dropzone__hint">JPG, PNG, or PDF · max 10 MB</span>
       </button>
       <input
@@ -113,6 +157,7 @@ export function BillUpload() {
         onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
       />
       {fileError && <p className="bill-upload__error">{fileError}</p>}
+      {scanNote && <p className="bill-upload__scan-note">{scanNote}</p>}
 
       {/* Manual entry — the numbers the MVP relies on. */}
       <form className="bill-form" onSubmit={handleSubmit}>

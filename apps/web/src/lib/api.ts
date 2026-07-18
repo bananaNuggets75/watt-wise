@@ -82,3 +82,29 @@ export async function listBills(): Promise<Bill[]> {
   if (!res.ok) throw new ApiError("Failed to load bills", res.status);
   return (await res.json()) as Bill[];
 }
+
+/** Best-effort fields the OCR scan suggests (any may be absent). */
+export interface ScanResult {
+  kwhUsed?: number;
+  amount?: number;
+  provider?: string;
+  rawText: string;
+}
+
+/**
+ * OCR a bill image (JPG/PNG) and return suggested field values. This does
+ * not save anything — the caller pre-fills the form with the result and the
+ * user verifies before submitting. Only images are accepted (no PDF).
+ */
+export async function scanBill(file: File): Promise<ScanResult> {
+  const body = new FormData();
+  body.append("file", file);
+
+  const res = await fetch(`${API_URL}/api/bills/scan`, { method: "POST", body });
+  const data = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    throw new ApiError(data.message ?? data.error ?? "Failed to scan image", res.status);
+  }
+  return data as ScanResult;
+}
