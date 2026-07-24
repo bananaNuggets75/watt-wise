@@ -1,10 +1,12 @@
 /**
  * Routes for the utility bill upload / input module.
  *
- *   POST /api/bills   Create a bill from manual form fields, with an
- *                     optional scanned file (JPG / PNG / PDF, max 10 MB).
- *   GET  /api/bills   List all stored bills (newest first).
- *   GET  /api/bills/:id  Fetch one bill by id.
+ *   POST /api/bills       Create a bill from manual form fields, with an
+ *                         optional scanned file (JPG / PNG / PDF, max 10 MB).
+ *   POST /api/bills/scan  OCR an uploaded image and return suggested fields
+ *                         (does not save anything).
+ *   GET  /api/bills       List all stored bills (newest first).
+ *   GET  /api/bills/:id   Fetch one bill by id.
  *
  * The request is multipart/form-data: the file arrives as "file" and the
  * numbers arrive as ordinary text fields alongside it. multer parses both.
@@ -13,6 +15,7 @@
 import { Router } from "express";
 import multer from "multer";
 import { createBill, getBill, listBills } from "../store/billStore.js";
+import { getBillScanner } from "../ocr/index.js";
 import type { BillFileMeta, BillInput } from "../types/bill.js";
 
 export const billsRouter = Router();
@@ -31,6 +34,23 @@ const upload = multer({
   limits: { fileSize: MAX_FILE_BYTES },
   fileFilter: (_req, file, cb) => {
     if (ALLOWED_MIME.has(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("UNSUPPORTED_FILE_TYPE"));
+    }
+  },
+});
+
+/**
+ * Separate upload config for OCR: Tesseract reads raster images, not PDFs,
+ * so scanning is restricted to JPG / PNG. The size cap is shared.
+ */
+const IMAGE_MIME = new Set(["image/jpeg", "image/png"]);
+const uploadImage = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_FILE_BYTES },
+  fileFilter: (_req, file, cb) => {
+    if (IMAGE_MIME.has(file.mimetype)) {
       cb(null, true);
     } else {
       cb(new Error("UNSUPPORTED_FILE_TYPE"));
@@ -99,6 +119,28 @@ billsRouter.post("/", upload.single("file"), (req, res) => {
 
   const bill = createBill(input, fileMeta);
   return res.status(201).json(bill);
+});
+
+/**
+ * POST /api/bills/scan — OCR an uploaded image and return suggested fields.
+ * This does NOT save a bill; it's a helper that lets the client pre-fill the
+ * form. The user reviews/corrects the suggestions, then submits POST / to
+ * actually store the bill. Returns 400 if no image was provided.
+ */
+billsRouter.post("/scan", uploadImage.single("file"), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: "NO_IMAGE", message: "Attach a JPG or PNG image to scan." });
+  }
+  // The scanner (Tesseract or OpenRouter vision) is chosen by the factory.
+  const scanner = getBillScanner();
+  try {
+    const result = await scanner.scan(req.file.buffer, req.file.mimetype);
+    return res.json({ engine: scanner.name, ...result });
+  } catch (err) {
+    // A scan failure isn't fatal — the web UI falls back to manual entry.
+    console.error(`[ocr] ${scanner.name} scan failed:`, err);
+    return res.status(502).json({ error: "SCAN_FAILED", message: "Could not read the image." });
+  }
 });
 
 /** GET /api/bills — list every stored bill, newest first. */

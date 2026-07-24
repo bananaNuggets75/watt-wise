@@ -134,6 +134,16 @@
   font-weight: 600;
 }
 
+/* Note shown after an OCR scan (auto-filled / couldn't read). */
+.bill-upload__scan-note {
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #eef7ee;
+  color: #2f5233;
+  font-size: 0.82rem;
+}
+
 /* Accessible hidden native file input (triggered by the dropzone). */
 .visually-hidden {
   position: absolute;

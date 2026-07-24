@@ -51,18 +51,39 @@ flutter run
 
 ### Utility bill upload / input module
 
-Lets a user record an electricity bill by uploading an optional scan and
-entering the numbers manually (no OCR yet — that's a later phase).
+Lets a user record an electricity bill by uploading a photo and/or entering
+the numbers manually. Uploading an **image** runs OCR to pre-fill the form.
 
 - **Web UI:** `apps/web/src/features/bill-upload/` — the "Scan Your Bill"
-  screen (file dropzone + manual entry form).
+  screen (file dropzone + manual entry form). Selecting a JPG/PNG scans it
+  and auto-fills provider/kWh/amount; the user verifies before saving.
 - **API:** `apps/api/src/routes/bills.ts`
   - `POST /api/bills` — multipart form: optional file (JPG/PNG/PDF, max
     10 MB) plus fields `accountName`, `provider`, `kwhUsed`, `amount`,
     `periodStart`, `periodEnd`. Returns the stored bill or a 400 with a
     per-field error list.
+  - `POST /api/bills/scan` — multipart form with a `file` (JPG/PNG only).
+    OCRs the image and returns suggested `{ kwhUsed, amount, provider,
+    rawText }` without saving. Returns 400 if no image is sent.
   - `GET /api/bills` — list all bills (newest first).
   - `GET /api/bills/:id` — fetch one bill.
+
+**OCR** has two swappable engines (`apps/api/src/ocr/`), selected by
+`OCR_PROVIDER` (defaults to `openrouter` when `OPENROUTER_API_KEY` is set,
+else `tesseract`). Either way OCR only *pre-fills* the form — manual entry is
+always the fallback, and PDFs are stored but not OCR'd (images only).
+
+- **`openrouter`** (`visionOcr.ts`) — a vision LLM
+  (`nvidia/nemotron-nano-12b-v2-vl:free` by default) reads the bill layout
+  directly and returns the fields as JSON. Much more accurate on real bill
+  photos. Requires `OPENROUTER_API_KEY`.
+  **Caveat:** the default is a *free* endpoint that **logs inputs** for
+  training — a bill has personal data, so this is **dev/demo only**. Use a
+  paid, no-logging model (`OCR_MODEL`) for real user data.
+- **`tesseract`** (`billOcr.ts`) — local, no key, no logging. Best-effort
+  regex parsing (`parseBillText`, unit-tested). Weaker on messy photos, and
+  downloads its English language data on first scan (slower first request).
+  Good offline fallback.
 
 Storage is in-memory for now (`apps/api/src/store/billStore.ts`); it resets
 on restart and will be swapped for Supabase later.
