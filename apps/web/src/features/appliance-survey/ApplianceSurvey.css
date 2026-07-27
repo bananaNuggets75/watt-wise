@@ -1,0 +1,162 @@
+/* Styles for the appliance survey screen. Follows the bill-upload screen's
+   light theme with a green accent, scoped under .appliance-survey. */
+
+.appliance-survey {
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 24px 20px 48px;
+  color: #1a1a1a;
+  text-align: left;
+}
+
+.appliance-survey__title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 8px 0 4px;
+}
+
+.appliance-survey__subtitle {
+  color: #6b7280;
+  font-size: 0.9rem;
+  margin: 0 0 20px;
+}
+
+/* One appliance entry. */
+.appliance-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.appliance-card__row {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.appliance-card__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.appliance-card__field--grow {
+  flex: 1;
+}
+
+.appliance-card__field--narrow {
+  max-width: 120px;
+}
+
+.appliance-card__field input,
+.appliance-card__field select {
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-weight: 400;
+  color: #1a1a1a;
+  background: #fff;
+}
+
+.appliance-card__field input:focus,
+.appliance-card__field select:focus {
+  outline: none;
+  border-color: #7cc07c;
+  box-shadow: 0 0 0 3px rgba(124, 192, 124, 0.25);
+}
+
+.appliance-card__remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #fff;
+  color: #b91c1c;
+  cursor: pointer;
+}
+
+.appliance-card__remove svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Inverter / non-inverter selector. */
+.toggle-group {
+  display: flex;
+  gap: 8px;
+}
+
+.toggle {
+  flex: 1;
+  padding: 9px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  background: #fff;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #374151;
+  cursor: pointer;
+}
+
+.toggle--on {
+  border-color: #7cc07c;
+  background: #d9f0d9;
+  color: #2f5233;
+  font-weight: 600;
+}
+
+.appliance-survey__add {
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 16px;
+  border: 1px dashed #9bcf9b;
+  border-radius: 12px;
+  background: #eef7ee;
+  color: #2f5233;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.appliance-survey__submit {
+  width: 100%;
+  padding: 13px;
+  border: none;
+  border-radius: 12px;
+  background: #111;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.appliance-survey__submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.appliance-survey__error-list {
+  margin: 0 0 12px;
+  padding-left: 18px;
+  color: #b91c1c;
+  font-size: 0.85rem;
+}
+
+.appliance-survey__success {
+  margin: 0 0 12px;
+  color: #15803d;
+  font-size: 0.9rem;
+  font-weight: 600;
+}

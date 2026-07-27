@@ -83,6 +83,48 @@ export async function listBills(): Promise<Bill[]> {
   return (await res.json()) as Bill[];
 }
 
+/** One appliance as recorded by the survey. */
+export interface Appliance {
+  id: string;
+  accountId: string;
+  type: string;
+  count: number;
+  isInverter?: boolean;
+  ageYears?: number;
+  createdAt: string;
+}
+
+/** What the survey form collects for one appliance before submitting. */
+export interface ApplianceDraft {
+  type: string;
+  count: number;
+  isInverter?: boolean;
+  ageYears?: number;
+}
+
+/**
+ * Submit the whole survey in one request. The API validates every entry
+ * before saving any of them, so a bad row rejects the batch rather than
+ * leaving a partial survey.
+ */
+export async function saveAppliances(drafts: ApplianceDraft[]): Promise<Appliance[]> {
+  const res = await fetch(`${API_URL}/api/appliances`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(drafts),
+  });
+  const data = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    throw new ApiError(
+      data.message ?? data.error ?? "Failed to save appliances",
+      res.status,
+      data.details,
+    );
+  }
+  return data as Appliance[];
+}
+
 /** Best-effort fields the OCR scan suggests (any may be absent). */
 export interface ScanResult {
   accountName?: string;
