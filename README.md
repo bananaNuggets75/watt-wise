@@ -94,6 +94,37 @@ Run both apps together and open the web app:
 pnpm dev          # web (:5173) + api (:4000)
 ```
 
+## Database schema
+
+`supabase/schema.sql` defines the Postgres/Supabase schema:
+
+```
+accounts (1) ──< bills
+          (1) ──< appliances
+```
+
+An **account** is one electricity account/location (e.g. "Cafe Marie"). Bills
+and appliances both hang off it — that account layer is what connects a
+user's data together, which is why it exists before users do.
+
+Bills are grouped by **`customer_account_number`** (the "CAN" printed on the
+bill), so statements from different months land under the same account with
+no login required. The CAN is *not* a secret — it appears on every bill — so
+it groups data and must never be accepted as a credential.
+
+**Auth is not set up yet**, so `accounts.user_id` carries a fixed placeholder
+(`00000000-…-0000`) with no FK to `auth.users`. The "When auth arrives"
+section at the bottom of the file is the entire migration: point `user_id` at
+real users and enable the (already-written) row-level security policies.
+Claiming an account is then just setting its `user_id` — its bills and
+appliances come along unchanged.
+
+Apply it to a database with:
+
+```bash
+psql -d <your-database> -f supabase/schema.sql
+```
+
 ### AI recommendation engine (v1)
 
 Turns an account's energy profile into an energy health score (0-100) and a
