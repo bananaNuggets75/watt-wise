@@ -94,6 +94,29 @@ Run both apps together and open the web app:
 pnpm dev          # web (:5173) + api (:4000)
 ```
 
+### Appliance survey
+
+Records what appliances an account uses. This is the input for the
+recommendation engine's non-inverter and aging-appliance rules, which had no
+data source before it.
+
+- **Web UI:** `apps/web/src/features/appliance-survey/` at `/appliances` —
+  appliance cards (type, quantity, inverter/non-inverter, optional age) with
+  "Add Appliance"; the whole list submits at once.
+- **API:** `apps/api/src/routes/appliances.ts`
+  - `POST /api/appliances` — accepts one appliance or an array. Every entry is
+    validated before any is saved, so a bad row rejects the batch instead of
+    leaving a half-saved survey; errors name the row (`appliance 2: ...`).
+  - `GET /api/appliances` — list all, or one account's with `?accountId=`.
+  - `DELETE /api/appliances/:id` — remove an entry.
+
+A stored appliance is the engine's `ApplianceInput` plus ids, so survey rows
+can be passed to `POST /api/recommendations` unchanged. Entries submitted
+without an `accountId` land on a placeholder account until auth and the
+account picker exist. Storage is in-memory
+(`apps/api/src/store/applianceStore.ts`); the `appliances` table is already in
+`supabase/schema.sql`.
+
 ## Database schema
 
 `supabase/schema.sql` defines the Postgres/Supabase schema:
