@@ -4,6 +4,7 @@ import cors from "cors";
 import { MulterError } from "multer";
 import { billsRouter } from "./routes/bills.js";
 import { recommendationsRouter } from "./routes/recommendations.js";
+import { appliancesRouter } from "./routes/appliances.js";
 
 const app = express();
 const PORT = process.env.PORT ?? 4000;
@@ -21,6 +22,9 @@ app.use("/api/bills", billsRouter);
 
 // AI recommendation engine (v1).
 app.use("/api/recommendations", recommendationsRouter);
+
+// Appliance survey.
+app.use("/api/appliances", appliancesRouter);
 
 /**
  * Central error handler. Must be registered after the routes. It translates
