@@ -1,53 +1,62 @@
 import "material-symbols/rounded.css";
 
 import navStyles from "./NavigationBar.module.css";
+import { useNavigate, useLocation } from "react-router";
+
+interface NavBarItem {
+  materialIcon: string;
+  itemName: string;
+  route: string;
+}
 
 export const NavigationBar = () => {
+  const navBarItems: NavBarItem[] = [
+    { materialIcon: "home", itemName: "Home", route: "/dashboard" },
+    { materialIcon: "lightbulb", itemName: "Insights", route: "/insights" },
+    {
+      materialIcon: "energy_savings_leaf",
+      itemName: "Simulator",
+      route: "/simulator",
+    },
+    { materialIcon: "person", itemName: "Profile", route: "/profile" },
+  ];
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
+
+  const handleRedirect = (route: string) => {
+    navigate(route);
+  };
+
   return (
     <div className={navStyles.NavBar}>
       <ul className={navStyles.NavBar_layout}>
-        <li>
-          <button
-            className={`${navStyles.NavBar_menuButton} ${navStyles.NavBar_menuButton___selected}`}
-          >
-            <div
-              className={`${navStyles.NavBar_menuicon} ${navStyles.NavBar_menuicon___selected}`}
-            >
-              <span
-                className={`material-symbols-rounded ${navStyles.NavBar_menuicon} ${navStyles.NavBar_menuicon___selected}`}
+        {navBarItems.map((navItem) => {
+          const isSelected = pathname === navItem.route;
+          console.log(pathname, navItem.route);
+          console.log("is selected:", isSelected);
+          return (
+            <li key={navItem.route}>
+              <button
+                className={`${navStyles.NavBar_menuButton} ${isSelected ? navStyles.NavBar_menuButton___selected : ""}`}
+                onClick={() => {
+                  handleRedirect(navItem.route);
+                }}
               >
-                home
-              </span>
-            </div>
-            <p className={navStyles.NavBar_menuName}>Home</p>
-          </button>
-        </li>
-        <li>
-          <button className={navStyles.NavBar_menuButton}>
-            <div className={navStyles.NavBar_menuicon}>
-              <span className="material-symbols-rounded">lightbulb</span>
-            </div>
-            <p className={navStyles.NavBar_menuName}>Insights</p>
-          </button>
-        </li>
-        <li>
-          <button className={navStyles.NavBar_menuButton}>
-            <div className={navStyles.NavBar_menuicon}>
-              <span className="material-symbols-rounded">
-                energy_savings_leaf
-              </span>
-            </div>
-            <p className={navStyles.NavBar_menuName}>Simulator</p>
-          </button>
-        </li>
-        <li>
-          <button className={navStyles.NavBar_menuButton}>
-            <div className={navStyles.NavBar_menuicon}>
-              <span className="material-symbols-rounded">person</span>
-            </div>
-            <p className={navStyles.NavBar_menuName}>Profile</p>
-          </button>
-        </li>
+                <div
+                  className={`${navStyles.NavBar_menuIconContainer} ${isSelected ? navStyles.NavBar_menuIconContainer___selected : ""}`}
+                >
+                  <span
+                    className={`material-symbols-rounded ${navStyles.NavBar_menuicon} ${isSelected ? navStyles.NavBar_menuicon___selected : ""}`}
+                  >
+                    {navItem.materialIcon}
+                  </span>
+                </div>
+
+                <p className={navStyles.NavBar_menuName}>{navItem.itemName}</p>
+              </button>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );

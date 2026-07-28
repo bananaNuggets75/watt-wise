@@ -1,5 +1,5 @@
 .NavBar {
-  position: sticky;
+  position: fixed;
   bottom: 0;
   background-color: #e9eee5;
   padding: 4px;
@@ -41,16 +41,22 @@
   font-weight: bold;
 }
 
-.NavBar_menuicon {
-  font-size: 24px !important;
+.NavBar_menuIconContainer {
   padding: 2px 4px;
   margin: 0px 8px;
   border-radius: 999px;
 }
 
+.NavBar_menuIconContainer___selected {
+  background-color: black;
+}
+
+.NavBar_menuicon {
+  font-size: 24px !important;
+}
+
 .NavBar_menuicon___selected {
   font-variation-settings: "FILL" 100;
-  background-color: black;
   color: white;
 }
 
