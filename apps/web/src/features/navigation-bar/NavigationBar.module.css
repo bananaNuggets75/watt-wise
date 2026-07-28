@@ -1,0 +1,59 @@
+.NavBar {
+  position: sticky;
+  bottom: 0;
+  background-color: #e9eee5;
+  padding: 4px;
+  width: 100%;
+  z-index: 999;
+  display: flex;
+  justify-content: center;
+}
+
+.NavBar_layout {
+  list-style: none;
+  display: flex;
+  padding-left: 0;
+  justify-content: space-evenly;
+  align-items: center;
+  max-width: 56rem;
+  width: 100%;
+  margin: 2px 0px;
+}
+
+.NavBar_menuButton {
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  color: #6d7268;
+  transition: all;
+  transition-duration: 100ms;
+  border-radius: 12px;
+  padding: 4px 0px;
+  width: 5rem;
+}
+
+.NavBar_menuButton:hover {
+  background-color: rgba(208, 212, 204, 0.5);
+}
+
+.NavBar_menuButton___selected {
+  color: black;
+  font-weight: bold;
+}
+
+.NavBar_menuicon {
+  font-size: 24px !important;
+  padding: 2px 4px;
+  margin: 0px 8px;
+  border-radius: 999px;
+}
+
+.NavBar_menuicon___selected {
+  font-variation-settings: "FILL" 100;
+  background-color: black;
+  color: white;
+}
+
+.NavBar_menuName {
+  font-size: 12px;
+}
