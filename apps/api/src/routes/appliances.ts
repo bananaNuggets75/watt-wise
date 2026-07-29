@@ -3,8 +3,10 @@
  *
  *   POST   /api/appliances      Save survey entries. Accepts one appliance or
  *                               an array (the form adds several, then submits).
- *   GET    /api/appliances      List appliances; ?accountId= filters to one.
- *   DELETE /api/appliances/:id  Remove one entry.
+ *   GET    /api/appliances      List the user's appliances; ?accountId= filters.
+ *   DELETE /api/appliances/:id  Remove one of the user's entries.
+ *
+ * All routes require authentication and are scoped to req.user.
  */
 
 import { Router } from "express";
@@ -13,9 +15,13 @@ import {
   deleteAppliance,
   listAppliances,
 } from "../store/applianceStore.js";
+import { requireAuth } from "../middleware/requireAuth.js";
 import type { ApplianceSurveyInput } from "../types/appliance.js";
 
 export const appliancesRouter = Router();
+
+// Survey entries are per-user data, so every route here requires a session.
+appliancesRouter.use(requireAuth);
 
 /**
  * Placeholder account used when the client doesn't supply one. Auth and the
@@ -94,7 +100,7 @@ appliancesRouter.post("/", (req, res) => {
     return res.status(400).json({ error: "VALIDATION_FAILED", details: errors });
   }
 
-  const saved = parsed.map(createAppliance);
+  const saved = parsed.map((input) => createAppliance(req.user!.id, input));
   return res.status(201).json(saved);
 });
 
@@ -102,12 +108,12 @@ appliancesRouter.post("/", (req, res) => {
 appliancesRouter.get("/", (req, res) => {
   const accountId =
     typeof req.query.accountId === "string" ? req.query.accountId : undefined;
-  res.json(listAppliances(accountId));
+  res.json(listAppliances(req.user!.id, accountId));
 });
 
 /** DELETE /api/appliances/:id — remove one entry, or 404. */
 appliancesRouter.delete("/:id", (req, res) => {
-  if (!deleteAppliance(req.params.id)) {
+  if (!deleteAppliance(req.user!.id, req.params.id)) {
     return res.status(404).json({ error: "APPLIANCE_NOT_FOUND" });
   }
   return res.status(204).end();

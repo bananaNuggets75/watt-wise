@@ -12,10 +12,14 @@ import type { Appliance, ApplianceSurveyInput } from "../types/appliance.js";
 /** Backing array — private so callers go through the functions below. */
 const appliances: Appliance[] = [];
 
-/** Persist one appliance and return the stored record. */
-export function createAppliance(input: ApplianceSurveyInput): Appliance {
+/** Persist one appliance for a user and return the stored record. */
+export function createAppliance(
+  userId: string,
+  input: ApplianceSurveyInput,
+): Appliance {
   const appliance: Appliance = {
     id: randomUUID(),
+    userId,
     ...input,
     createdAt: new Date().toISOString(),
   };
@@ -28,16 +32,18 @@ export function createAppliance(input: ApplianceSurveyInput): Appliance {
  * appliances — which is what the recommendation engine needs when scoring one
  * account.
  */
-export function listAppliances(accountId?: string): Appliance[] {
-  const rows = accountId
-    ? appliances.filter((a) => a.accountId === accountId)
-    : [...appliances];
-  return rows.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+export function listAppliances(userId: string, accountId?: string): Appliance[] {
+  return appliances
+    .filter((a) => a.userId === userId && (!accountId || a.accountId === accountId))
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
-/** Remove one appliance by id. Returns true if something was removed. */
-export function deleteAppliance(id: string): boolean {
-  const index = appliances.findIndex((a) => a.id === id);
+/**
+ * Remove one of the user's appliances. Returns false for an id belonging to
+ * someone else, so another user's row can't be deleted by guessing its id.
+ */
+export function deleteAppliance(userId: string, id: string): boolean {
+  const index = appliances.findIndex((a) => a.id === id && a.userId === userId);
   if (index === -1) return false;
   appliances.splice(index, 1);
   return true;

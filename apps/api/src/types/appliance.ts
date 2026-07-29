@@ -21,6 +21,12 @@ export interface ApplianceSurveyInput extends ApplianceInput {
 /** A stored appliance: the survey input plus a server-assigned id. */
 export interface Appliance extends ApplianceSurveyInput {
   id: string;
+  /**
+   * The user who submitted this survey entry. Reads are filtered by it, so
+   * one user's appliances are never visible to another. Becomes the `user_id`
+   * column the Supabase RLS policies check.
+   */
+  userId: string;
   createdAt: string;
 }
 

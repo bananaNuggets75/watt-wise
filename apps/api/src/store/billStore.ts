@@ -29,20 +29,29 @@ const accountIdByCan = new Map<string, string>();
  * a bill without a CAN can't be grouped, so it gets its own fresh account
  * (the user can merge it later by adding the number).
  */
-function resolveAccountId(customerAccountNumber?: string): string {
+function resolveAccountId(userId: string, customerAccountNumber?: string): string {
   if (!customerAccountNumber) return randomUUID();
-  const existing = accountIdByCan.get(customerAccountNumber);
+  // Scope the key to the user: two people can hold bills for the same CAN
+  // (a shared meter, a reused sample bill) and must not end up sharing an
+  // account.
+  const key = `${userId}::${customerAccountNumber}`;
+  const existing = accountIdByCan.get(key);
   if (existing) return existing;
   const created = randomUUID();
-  accountIdByCan.set(customerAccountNumber, created);
+  accountIdByCan.set(key, created);
   return created;
 }
 
-/** Persist a new bill and return the stored record (with ids + timestamp). */
-export function createBill(input: BillInput, file: BillFileMeta | null): Bill {
+/** Persist a new bill for a user and return the stored record. */
+export function createBill(
+  userId: string,
+  input: BillInput,
+  file: BillFileMeta | null,
+): Bill {
   const bill: Bill = {
     id: randomUUID(),
-    accountId: resolveAccountId(input.customerAccountNumber),
+    userId,
+    accountId: resolveAccountId(userId, input.customerAccountNumber),
     ...input,
     file,
     createdAt: new Date().toISOString(),
@@ -51,14 +60,20 @@ export function createBill(input: BillInput, file: BillFileMeta | null): Bill {
   return bill;
 }
 
-/** Return all bills, newest first. */
-export function listBills(): Bill[] {
-  return [...bills].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+/** Return the user's bills, newest first. */
+export function listBills(userId: string): Bill[] {
+  return bills
+    .filter((b) => b.userId === userId)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
-/** Look up a single bill by id, or undefined if not found. */
-export function getBill(id: string): Bill | undefined {
-  return bills.find((b) => b.id === id);
+/**
+ * Look up one of the user's bills. Returns undefined for a bill belonging to
+ * someone else, so a guessed id reveals nothing — the route turns that into
+ * the same 404 as a genuinely missing bill.
+ */
+export function getBill(userId: string, id: string): Bill | undefined {
+  return bills.find((b) => b.id === id && b.userId === userId);
 }
 
 /**
@@ -66,11 +81,11 @@ export function getBill(id: string): Bill | undefined {
  * month-by-month history: bills sharing a CAN come back under one account,
  * with the newest bill supplying the display name.
  */
-export function listAccounts(): Account[] {
+export function listAccounts(userId: string): Account[] {
   const byAccountId = new Map<string, Account>();
   // listBills() is newest-first, so the first bill seen for an account is
   // the most recent one — its accountName wins.
-  for (const bill of listBills()) {
+  for (const bill of listBills(userId)) {
     const existing = byAccountId.get(bill.accountId);
     if (existing) {
       existing.bills.push(bill);

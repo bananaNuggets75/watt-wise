@@ -52,6 +52,12 @@ export interface BillInput {
 export interface Bill extends BillInput {
   id: string;
   /**
+   * The user who uploaded this bill. Every read is filtered by it, so one
+   * user's bills are never visible to another. Under Supabase this becomes
+   * the `user_id` column that the Row-Level Security policies check.
+   */
+  userId: string;
+  /**
    * Our internal account identifier. Bills sharing a customerAccountNumber
    * get the same accountId, which is how a month-by-month history is tied
    * together without any login.
