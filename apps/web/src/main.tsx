@@ -7,6 +7,8 @@ import App from "./App.tsx";
 import { Dashboard } from "./features/dashboard/Dashboard.tsx";
 import { BillUpload } from "./features/bill-upload/BillUpload.tsx";
 import { ApplianceSurvey } from "./features/appliance-survey/ApplianceSurvey.tsx";
+import { Login } from "./features/auth/Login.tsx";
+import { Register } from "./features/auth/Register.tsx";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
@@ -16,6 +18,8 @@ createRoot(document.getElementById("root")!).render(
           <Route index element={<BillUpload />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="appliances" element={<ApplianceSurvey />} />
+          <Route path="login" element={<Login />} />
+          <Route path="register" element={<Register />} />
         </Route>
       </Routes>
     </BrowserRouter>
