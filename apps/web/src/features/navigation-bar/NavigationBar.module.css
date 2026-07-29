@@ -25,15 +25,13 @@
   border: none;
   cursor: pointer;
   color: #6d7268;
-  transition: all;
-  transition-duration: 100ms;
   border-radius: 12px;
   padding: 4px 0px;
   width: 5rem;
 }
 
 .NavBar_menuButton:hover {
-  background-color: rgba(208, 212, 204, 0.5);
+  opacity: 0.6;
 }
 
 .NavBar_menuButton___selected {
@@ -45,6 +43,13 @@
   padding: 2px 4px;
   margin: 0px 8px;
   border-radius: 999px;
+  transition: all;
+  transition-duration: 200ms;
+}
+
+.NavBar_menuButton:hover .NavBar_menuIconContainer {
+  background-color: #6d7268;
+  color: #e9eee5;
 }
 
 .NavBar_menuIconContainer___selected {
