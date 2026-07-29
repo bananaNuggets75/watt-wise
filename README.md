@@ -139,6 +139,20 @@ the Supabase project is still being set up.
 Passwords are hashed with scrypt and a per-user salt, and compared in
 constant time. Emails are stored lowercased, so sign-in is case-insensitive.
 
+**What's protected.** `requireAuth` (`apps/api/src/middleware/requireAuth.ts`)
+guards every bill and appliance route, and those rows carry a `userId`:
+listings filter by it, and single-row reads and deletes match on it too, so
+another user's id returns the same 404 as a missing row rather than
+confirming it exists. `POST /api/recommendations` stays open — it scores data
+supplied in the request and reads nothing from storage.
+
+On the web, `RequireAuth` (`apps/web/src/features/auth/RequireAuth.tsx`)
+wraps the protected pages. It verifies the token with the API rather than
+trusting that one is present, so a token left over from a previous run
+redirects to sign-in instead of stranding the user on a page whose every
+request fails, and it remembers the attempted path so signing in returns them
+there.
+
 **This is a development stand-in, not production auth.** Users and sessions
 are in-memory (`apps/api/src/store/userStore.ts`), so both reset when the API
 restarts, and there is no email verification, password reset, or rate
