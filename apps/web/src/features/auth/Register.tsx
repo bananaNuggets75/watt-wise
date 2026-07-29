@@ -6,7 +6,7 @@
  */
 
 import { useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import { ApiError } from "../../lib/api";
 import { register } from "../../lib/auth";
 import "./Auth.css";
@@ -18,6 +18,9 @@ export function Register() {
   const [errors, setErrors] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  // RequireAuth stashes the page the user was trying to reach.
+  const from = (location.state as { from?: string } | null)?.from ?? "/";
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -32,7 +35,7 @@ export function Register() {
     setErrors([]);
     try {
       await register(email, password);
-      navigate("/");
+      navigate(from, { replace: true });
     } catch (err) {
       // ApiError carries the API's per-field validation messages.
       if (err instanceof ApiError) {

@@ -9,17 +9,24 @@ import { BillUpload } from "./features/bill-upload/BillUpload.tsx";
 import { ApplianceSurvey } from "./features/appliance-survey/ApplianceSurvey.tsx";
 import { Login } from "./features/auth/Login.tsx";
 import { Register } from "./features/auth/Register.tsx";
+import { RequireAuth } from "./features/auth/RequireAuth.tsx";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <BrowserRouter>
       <Routes>
         <Route element={<App />}>
-          <Route index element={<BillUpload />} />
-          <Route path="dashboard" element={<Dashboard />} />
-          <Route path="appliances" element={<ApplianceSurvey />} />
+          {/* Public: reachable while signed out. */}
           <Route path="login" element={<Login />} />
           <Route path="register" element={<Register />} />
+
+          {/* Everything else needs a session — RequireAuth redirects to
+              /login when there isn't a valid one. */}
+          <Route element={<RequireAuth />}>
+            <Route index element={<BillUpload />} />
+            <Route path="dashboard" element={<Dashboard />} />
+            <Route path="appliances" element={<ApplianceSurvey />} />
+          </Route>
         </Route>
       </Routes>
     </BrowserRouter>

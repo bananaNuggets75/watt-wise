@@ -7,17 +7,14 @@
  * also what makes the eventual switch to Supabase Auth a change to this
  * file alone.
  *
- * Note: localStorage is readable by any script on the page, so a token
- * there is vulnerable to XSS. That's an accepted trade-off for this MVP
- * (Supabase's client does the same by default); a production hardening
- * step would move to an httpOnly cookie.
+ * The token itself lives in ./session, which the API client also reads so
+ * it can authorise every request.
  */
 
 import { ApiError } from "./api";
+import { clearToken, getToken, setToken } from "./session";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:4000";
-const TOKEN_KEY = "wattwise.token";
-
 /** The signed-in user as the API returns it. */
 export interface AuthUser {
   id: string;
@@ -28,19 +25,6 @@ export interface AuthUser {
 interface AuthSession {
   user: AuthUser;
   token: string;
-}
-
-/** Read the stored token, if the user has signed in before. */
-export function getToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY);
-}
-
-function setToken(token: string): void {
-  localStorage.setItem(TOKEN_KEY, token);
-}
-
-function clearToken(): void {
-  localStorage.removeItem(TOKEN_KEY);
 }
 
 /**
