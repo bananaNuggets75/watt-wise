@@ -5,6 +5,7 @@ import { MulterError } from "multer";
 import { billsRouter } from "./routes/bills.js";
 import { recommendationsRouter } from "./routes/recommendations.js";
 import { appliancesRouter } from "./routes/appliances.js";
+import { authRouter } from "./routes/auth.js";
 
 const app = express();
 const PORT = process.env.PORT ?? 4000;
@@ -25,6 +26,9 @@ app.use("/api/recommendations", recommendationsRouter);
 
 // Appliance survey.
 app.use("/api/appliances", appliancesRouter);
+
+// Authentication (local stand-in for Supabase Auth).
+app.use("/api/auth", authRouter);
 
 /**
  * Central error handler. Must be registered after the routes. It translates
