@@ -117,6 +117,38 @@ account picker exist. Storage is in-memory
 (`apps/api/src/store/applianceStore.ts`); the `appliances` table is already in
 `supabase/schema.sql`.
 
+### Authentication
+
+Email + password register and sign-in, so the app has a working login while
+the Supabase project is still being set up.
+
+- **Web UI:** `apps/web/src/features/auth/` — `/register` and `/login`.
+  Basic fields only; the visual design is a separate pass.
+- **Client:** `apps/web/src/lib/auth.ts` — every auth call goes through this
+  one module, which is what makes the switch to Supabase Auth a single-file
+  change. The token is kept in `localStorage` so a refresh doesn't sign the
+  user out.
+- **API:** `apps/api/src/routes/auth.ts`
+  - `POST /api/auth/register` — create an account and sign in. 409 if the
+    email is taken.
+  - `POST /api/auth/login` — sign in. Returns a deliberately vague 401 so it
+    can't be used to discover which emails are registered.
+  - `POST /api/auth/logout` — invalidate the token.
+  - `GET /api/auth/me` — resolve a bearer token back to its user.
+
+Passwords are hashed with scrypt and a per-user salt, and compared in
+constant time. Emails are stored lowercased, so sign-in is case-insensitive.
+
+**This is a development stand-in, not production auth.** Users and sessions
+are in-memory (`apps/api/src/store/userStore.ts`), so both reset when the API
+restarts, and there is no email verification, password reset, or rate
+limiting. Replacing it with Supabase Auth means rewriting that store and
+`apps/web/src/lib/auth.ts`; the routes, pages, and `AuthUser`/session shapes
+were built to match what Supabase returns. The bill/appliance data is already
+schema-ready for it: accounts carry a placeholder `user_id` that becomes the
+real one, and the RLS policies in `supabase/schema.sql` are written and
+commented out.
+
 ## Database schema
 
 `supabase/schema.sql` defines the Postgres/Supabase schema:
