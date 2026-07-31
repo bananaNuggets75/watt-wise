@@ -10,6 +10,7 @@
  */
 
 import { useRef, useState } from "react";
+import { Link } from "react-router";
 import { ApiError, createBill, scanBill, type BillFormData } from "../../lib/api";
 import "./BillUpload.css";
 
@@ -237,7 +238,17 @@ export function BillUpload() {
             ))}
           </ul>
         )}
-        {savedMessage && <p className="bill-upload__success">{savedMessage}</p>}
+        {/* On success, offer the next onboarding step rather than navigating
+            away automatically — someone logging a monthly bill shouldn't be
+            pushed into the appliance survey every time. */}
+        {savedMessage && (
+          <div className="bill-upload__saved">
+            <p className="bill-upload__success">{savedMessage}</p>
+            <Link className="bill-upload__next" to="/appliances">
+              Next: add your appliances
+            </Link>
+          </div>
+        )}
 
         <button type="submit" className="bill-form__submit" disabled={submitting}>
           {submitting ? "Saving…" : "Add bill"}

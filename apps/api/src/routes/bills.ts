@@ -5,8 +5,11 @@
  *                         optional scanned file (JPG / PNG / PDF, max 10 MB).
  *   POST /api/bills/scan  OCR an uploaded image and return suggested fields
  *                         (does not save anything).
- *   GET  /api/bills       List all stored bills (newest first).
- *   GET  /api/bills/:id   Fetch one bill by id.
+ *   GET  /api/bills       List the signed-in user's bills (newest first).
+ *   GET  /api/bills/:id   Fetch one of the user's bills by id.
+ *
+ * All routes require authentication and are scoped to req.user, so a bill is
+ * only ever visible to the account that uploaded it.
  *
  * The request is multipart/form-data: the file arrives as "file" and the
  * numbers arrive as ordinary text fields alongside it. multer parses both.
@@ -16,9 +19,14 @@ import { Router } from "express";
 import multer from "multer";
 import { createBill, getBill, listBills } from "../store/billStore.js";
 import { getBillScanner } from "../ocr/index.js";
+import { requireAuth } from "../middleware/requireAuth.js";
 import type { BillFileMeta, BillInput } from "../types/bill.js";
 
 export const billsRouter = Router();
+
+// Every bill route needs a signed-in user: bills are per-user data, and the
+// handlers below rely on req.user to scope reads and writes.
+billsRouter.use(requireAuth);
 
 /** File-upload limits and allowed types for a bill scan. */
 const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10 MB, matches the UI hint
@@ -117,7 +125,7 @@ billsRouter.post("/", upload.single("file"), (req, res) => {
       }
     : null;
 
-  const bill = createBill(input, fileMeta);
+  const bill = createBill(req.user!.id, input, fileMeta);
   return res.status(201).json(bill);
 });
 
@@ -144,13 +152,13 @@ billsRouter.post("/scan", uploadImage.single("file"), async (req, res) => {
 });
 
 /** GET /api/bills — list every stored bill, newest first. */
-billsRouter.get("/", (_req, res) => {
-  res.json(listBills());
+billsRouter.get("/", (req, res) => {
+  res.json(listBills(req.user!.id));
 });
 
 /** GET /api/bills/:id — fetch one bill or 404. */
 billsRouter.get("/:id", (req, res) => {
-  const bill = getBill(req.params.id);
+  const bill = getBill(req.user!.id, req.params.id);
   if (!bill) return res.status(404).json({ error: "BILL_NOT_FOUND" });
   return res.json(bill);
 });

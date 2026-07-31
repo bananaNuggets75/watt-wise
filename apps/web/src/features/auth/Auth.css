@@ -1,0 +1,90 @@
+/* Shared styles for the register and login pages.
+   Intentionally minimal — the visual design is a separate pass, so this
+   only provides readable structure to build on. */
+
+.auth {
+  max-width: 360px;
+  margin: 0 auto;
+  padding: 40px 20px;
+  color: #1a1a1a;
+  text-align: left;
+}
+
+.auth__title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0 0 4px;
+}
+
+.auth__subtitle {
+  color: #6b7280;
+  font-size: 0.9rem;
+  margin: 0 0 24px;
+}
+
+.auth__form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.auth__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.auth__field input {
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-weight: 400;
+  color: #1a1a1a;
+  background: #fff;
+}
+
+.auth__field input:focus {
+  outline: none;
+  border-color: #7cc07c;
+  box-shadow: 0 0 0 3px rgba(124, 192, 124, 0.25);
+}
+
+.auth__submit {
+  margin-top: 6px;
+  padding: 13px;
+  border: none;
+  border-radius: 12px;
+  background: #111;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.auth__submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.auth__errors {
+  margin: 0;
+  padding-left: 18px;
+  color: #b91c1c;
+  font-size: 0.85rem;
+}
+
+.auth__alt {
+  margin-top: 18px;
+  font-size: 0.85rem;
+  color: #6b7280;
+  text-align: center;
+}
+
+.auth__alt a {
+  color: #2f5233;
+  font-weight: 600;
+}
