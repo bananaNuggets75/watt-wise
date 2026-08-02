@@ -4,7 +4,14 @@
  * All network calls to the Node API go through here so components never
  * hardcode URLs or duplicate fetch/error logic. The base URL is read from
  * VITE_API_URL at build time and falls back to the local dev server.
+ *
+ * Every request carries the session token: the bill and appliance routes
+ * require it and scope their data to the signed-in user. Note that the
+ * multipart calls pass only the auth header — setting Content-Type by hand
+ * would clobber the boundary the browser generates for FormData.
  */
+
+import { authHeaders } from "./session";
 
 // Vite exposes env vars prefixed with VITE_. In dev this defaults to the
 // local Express server; set VITE_API_URL in a .env for other environments.
@@ -62,7 +69,11 @@ export async function createBill(form: BillFormData, file: File | null): Promise
   body.append("periodEnd", form.periodEnd);
   if (file) body.append("file", file);
 
-  const res = await fetch(`${API_URL}/api/bills`, { method: "POST", body });
+  const res = await fetch(`${API_URL}/api/bills`, {
+    method: "POST",
+    headers: authHeaders(),
+    body,
+  });
   const data = await res.json().catch(() => ({}));
 
   if (!res.ok) {
@@ -78,9 +89,51 @@ export async function createBill(form: BillFormData, file: File | null): Promise
 
 /** Fetch all stored bills, newest first. */
 export async function listBills(): Promise<Bill[]> {
-  const res = await fetch(`${API_URL}/api/bills`);
+  const res = await fetch(`${API_URL}/api/bills`, { headers: authHeaders() });
   if (!res.ok) throw new ApiError("Failed to load bills", res.status);
   return (await res.json()) as Bill[];
+}
+
+/** One appliance as recorded by the survey. */
+export interface Appliance {
+  id: string;
+  accountId: string;
+  type: string;
+  count: number;
+  isInverter?: boolean;
+  ageYears?: number;
+  createdAt: string;
+}
+
+/** What the survey form collects for one appliance before submitting. */
+export interface ApplianceDraft {
+  type: string;
+  count: number;
+  isInverter?: boolean;
+  ageYears?: number;
+}
+
+/**
+ * Submit the whole survey in one request. The API validates every entry
+ * before saving any of them, so a bad row rejects the batch rather than
+ * leaving a partial survey.
+ */
+export async function saveAppliances(drafts: ApplianceDraft[]): Promise<Appliance[]> {
+  const res = await fetch(`${API_URL}/api/appliances`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify(drafts),
+  });
+  const data = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    throw new ApiError(
+      data.message ?? data.error ?? "Failed to save appliances",
+      res.status,
+      data.details,
+    );
+  }
+  return data as Appliance[];
 }
 
 /** Best-effort fields the OCR scan suggests (any may be absent). */
@@ -103,7 +156,11 @@ export async function scanBill(file: File): Promise<ScanResult> {
   const body = new FormData();
   body.append("file", file);
 
-  const res = await fetch(`${API_URL}/api/bills/scan`, { method: "POST", body });
+  const res = await fetch(`${API_URL}/api/bills/scan`, {
+    method: "POST",
+    headers: authHeaders(),
+    body,
+  });
   const data = await res.json().catch(() => ({}));
 
   if (!res.ok) {

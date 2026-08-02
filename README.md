@@ -94,6 +94,106 @@ Run both apps together and open the web app:
 pnpm dev          # web (:5173) + api (:4000)
 ```
 
+### Appliance survey
+
+Records what appliances an account uses. This is the input for the
+recommendation engine's non-inverter and aging-appliance rules, which had no
+data source before it.
+
+- **Web UI:** `apps/web/src/features/appliance-survey/` at `/appliances` —
+  appliance cards (type, quantity, inverter/non-inverter, optional age) with
+  "Add Appliance"; the whole list submits at once.
+- **API:** `apps/api/src/routes/appliances.ts`
+  - `POST /api/appliances` — accepts one appliance or an array. Every entry is
+    validated before any is saved, so a bad row rejects the batch instead of
+    leaving a half-saved survey; errors name the row (`appliance 2: ...`).
+  - `GET /api/appliances` — list all, or one account's with `?accountId=`.
+  - `DELETE /api/appliances/:id` — remove an entry.
+
+A stored appliance is the engine's `ApplianceInput` plus ids, so survey rows
+can be passed to `POST /api/recommendations` unchanged. Entries submitted
+without an `accountId` land on a placeholder account until auth and the
+account picker exist. Storage is in-memory
+(`apps/api/src/store/applianceStore.ts`); the `appliances` table is already in
+`supabase/schema.sql`.
+
+### Authentication
+
+Email + password register and sign-in, so the app has a working login while
+the Supabase project is still being set up.
+
+- **Web UI:** `apps/web/src/features/auth/` — `/register` and `/login`.
+  Basic fields only; the visual design is a separate pass.
+- **Client:** `apps/web/src/lib/auth.ts` — every auth call goes through this
+  one module, which is what makes the switch to Supabase Auth a single-file
+  change. The token is kept in `localStorage` so a refresh doesn't sign the
+  user out.
+- **API:** `apps/api/src/routes/auth.ts`
+  - `POST /api/auth/register` — create an account and sign in. 409 if the
+    email is taken.
+  - `POST /api/auth/login` — sign in. Returns a deliberately vague 401 so it
+    can't be used to discover which emails are registered.
+  - `POST /api/auth/logout` — invalidate the token.
+  - `GET /api/auth/me` — resolve a bearer token back to its user.
+
+Passwords are hashed with scrypt and a per-user salt, and compared in
+constant time. Emails are stored lowercased, so sign-in is case-insensitive.
+
+**What's protected.** `requireAuth` (`apps/api/src/middleware/requireAuth.ts`)
+guards every bill and appliance route, and those rows carry a `userId`:
+listings filter by it, and single-row reads and deletes match on it too, so
+another user's id returns the same 404 as a missing row rather than
+confirming it exists. `POST /api/recommendations` stays open — it scores data
+supplied in the request and reads nothing from storage.
+
+On the web, `RequireAuth` (`apps/web/src/features/auth/RequireAuth.tsx`)
+wraps the protected pages. It verifies the token with the API rather than
+trusting that one is present, so a token left over from a previous run
+redirects to sign-in instead of stranding the user on a page whose every
+request fails, and it remembers the attempted path so signing in returns them
+there.
+
+**This is a development stand-in, not production auth.** Users and sessions
+are in-memory (`apps/api/src/store/userStore.ts`), so both reset when the API
+restarts, and there is no email verification, password reset, or rate
+limiting. Replacing it with Supabase Auth means rewriting that store and
+`apps/web/src/lib/auth.ts`; the routes, pages, and `AuthUser`/session shapes
+were built to match what Supabase returns. The bill/appliance data is already
+schema-ready for it: accounts carry a placeholder `user_id` that becomes the
+real one, and the RLS policies in `supabase/schema.sql` are written and
+commented out.
+
+## Database schema
+
+`supabase/schema.sql` defines the Postgres/Supabase schema:
+
+```
+accounts (1) ──< bills
+          (1) ──< appliances
+```
+
+An **account** is one electricity account/location (e.g. "Cafe Marie"). Bills
+and appliances both hang off it — that account layer is what connects a
+user's data together, which is why it exists before users do.
+
+Bills are grouped by **`customer_account_number`** (the "CAN" printed on the
+bill), so statements from different months land under the same account with
+no login required. The CAN is *not* a secret — it appears on every bill — so
+it groups data and must never be accepted as a credential.
+
+**Auth is not set up yet**, so `accounts.user_id` carries a fixed placeholder
+(`00000000-…-0000`) with no FK to `auth.users`. The "When auth arrives"
+section at the bottom of the file is the entire migration: point `user_id` at
+real users and enable the (already-written) row-level security policies.
+Claiming an account is then just setting its `user_id` — its bills and
+appliances come along unchanged.
+
+Apply it to a database with:
+
+```bash
+psql -d <your-database> -f supabase/schema.sql
+```
+
 ### AI recommendation engine (v1)
 
 Turns an account's energy profile into an energy health score (0-100) and a

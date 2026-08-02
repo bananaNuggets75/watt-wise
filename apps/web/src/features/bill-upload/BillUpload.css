@@ -134,6 +134,32 @@
   font-weight: 600;
 }
 
+/* Success block: confirmation plus the optional next onboarding step. */
+.bill-upload__saved {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #9bcf9b;
+  border-radius: 12px;
+  background: #eef7ee;
+}
+
+.bill-upload__next {
+  align-self: flex-start;
+  padding: 9px 14px;
+  border-radius: 10px;
+  background: #2f5233;
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.bill-upload__next:hover {
+  background: #24401f;
+}
+
 /* Note shown after an OCR scan (auto-filled / couldn't read). */
 .bill-upload__scan-note {
   margin-top: 10px;
