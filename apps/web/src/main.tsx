@@ -20,10 +20,7 @@ createRoot(document.getElementById("root")!).render(
           {/* Public: reachable while signed out. */}
           <Route path="login" element={<Login />} />
           <Route path="register" element={<Register />} />
-          {/* 
- <Route index element={<BillUpload />} />
- <Route path="dashboard" element={<Dashboard />} />
- */}
+
           {/* Everything else needs a session — RequireAuth redirects to
               /login when there isn't a valid one. */}
           <Route element={<RequireAuth />}>
