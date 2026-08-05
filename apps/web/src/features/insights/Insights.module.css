@@ -1,0 +1,117 @@
+.Insights {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 12px;
+  color: #1a1a1a;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.Insights_sectionTitle {
+  font-size: 20px;
+  font-weight: bold;
+  margin: 0;
+}
+
+.Insights_section {
+  padding-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.Insights_sectionSubtitle {
+  font-size: 12px;
+  color: #6d7268;
+}
+
+.Insights_card {
+  padding: 16px;
+  border-radius: 24px;
+  background-color: #e9eee5;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.Insights_cardTitle {
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.Insights_card__primary {
+  background-color: #b8eeaa;
+}
+
+.HealthCard_topRow {
+  display: flex;
+  justify-content: space-between;
+}
+
+.HealthCard_value {
+  font-size: 36px;
+  font-weight: bold;
+}
+
+.HealthCard_badge {
+  border-radius: 999px;
+  background-color: #436548;
+  font-size: 12px;
+  color: white;
+  height: fit-content;
+  padding: 4px 8px;
+}
+
+.HealthCard_progressBar {
+  border-radius: 24px;
+  border: none;
+}
+
+.ProgressBar_container {
+  background-color: #436548;
+  width: 100%;
+  border-radius: 24px;
+  height: 16px;
+}
+
+.ProgressBar_value {
+  background-color: white;
+  border-radius: 24px;
+  height: 100%;
+  width: 78%;
+}
+
+.Benchmark_description {
+  font-weight: bold;
+  text-align: center;
+  font-size: 12px;
+}
+
+.Benchmark_description__colored {
+  color: #436548;
+}
+
+.Comparison_placeholder {
+  display: flex;
+  justify-content: center;
+  opacity: 0.8;
+  font-size: 12px;
+}
+
+.AverageConsumption_table,
+td {
+  border-collapse: collapse;
+  padding: 8px;
+  text-align: center;
+  font-size: 16px;
+}
+
+.AverageConsumption_table th {
+  color: #6d7268;
+  border-bottom: 1px solid #898d84;
+}
+
+.AverageConsumption_number {
+  text-align: end;
+}
