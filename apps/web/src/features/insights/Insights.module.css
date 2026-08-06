@@ -136,6 +136,7 @@ td {
   border-radius: 24px;
   height: fit-content;
   font-size: 12px;
+  flex-shrink: 0;
 }
 
 .PriorityAction_badge__medium {
