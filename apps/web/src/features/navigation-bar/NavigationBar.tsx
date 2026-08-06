@@ -21,6 +21,7 @@ export const NavigationBar = () => {
     { materialIcon: "person", itemName: "Profile", route: "/profile" },
   ];
   const { pathname } = useLocation();
+  const currentRoute = pathname.split("/")[1];
   const navigate = useNavigate();
 
   const handleRedirect = (route: string) => {
@@ -31,8 +32,8 @@ export const NavigationBar = () => {
     <div className={navStyles.NavBar}>
       <ul className={navStyles.NavBar_layout}>
         {navBarItems.map((navItem) => {
-          const isSelected = pathname === navItem.route;
-          console.log(pathname, navItem.route);
+          const isSelected = currentRoute === navItem.route.split("/")[1];
+          console.log(currentRoute, navItem.route);
           console.log("is selected:", isSelected);
           return (
             <li key={navItem.route}>
