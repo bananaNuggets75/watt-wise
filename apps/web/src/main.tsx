@@ -1,6 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter, Route, Routes } from "react-router";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router";
 
 import "./index.css";
 import App from "./App.tsx";
@@ -11,6 +11,7 @@ import { RequireAuth } from "./features/auth/RequireAuth.tsx";
 import { Dashboard } from "./features/dashboard/Dashboard.tsx";
 import { BillUpload } from "./features/bill-upload/BillUpload.tsx";
 import { InsightsPage } from "./features/insights/InsightsPage.tsx";
+import { HealthScore } from "./features/insights/components/HealthScore.tsx";
 import { ApplianceSurvey } from "./features/appliance-survey/ApplianceSurvey.tsx";
 
 createRoot(document.getElementById("root")!).render(
@@ -28,7 +29,10 @@ createRoot(document.getElementById("root")!).render(
             <Route index element={<BillUpload />} />
             <Route element={<HomeLayout />}>
               <Route path="dashboard" element={<Dashboard />} />
-              <Route path="insights" element={<InsightsPage />} />
+              <Route path="insights" element={<InsightsPage />}>
+                <Route index element={<Navigate to={"health-score"} />} />
+                <Route path="health-score" element={<HealthScore />} />
+              </Route>
             </Route>
             <Route path="appliances" element={<ApplianceSurvey />} />
           </Route>

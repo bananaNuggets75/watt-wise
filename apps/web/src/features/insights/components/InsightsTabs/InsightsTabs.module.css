@@ -1,0 +1,50 @@
+.Tabs_background {
+  /* background-color: #e9eee5; */
+  background-color: white;
+  width: 100%;
+}
+
+.Tabs_container {
+  margin: 0 auto;
+  list-style: none;
+  padding-left: 0;
+  display: flex;
+  justify-content: space-evenly;
+  max-width: 56rem;
+  width: 100%;
+}
+
+.Tabs_itemContainer {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.Tabs_button {
+  border: none;
+  background-color: transparent;
+  font-size: 14px;
+  font-weight: bold;
+  padding: 0;
+  cursor: pointer;
+  width: 100%;
+}
+
+.Tabs_button:hover {
+  background-color: rgba(233, 238, 229, 0.5);
+}
+
+.Tabs_label {
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+  width: fit-content;
+}
+
+.Tabs_label__selected {
+  color: #6d7268;
+  border-bottom: 3px solid #6d7268;
+  border-radius: 2px;
+}
