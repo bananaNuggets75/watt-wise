@@ -13,6 +13,7 @@ import { BillUpload } from "./features/bill-upload/BillUpload.tsx";
 import { InsightsPage } from "./features/insights/InsightsPage.tsx";
 import { HealthScore } from "./features/insights/components/HealthScore.tsx";
 import { ApplianceSurvey } from "./features/appliance-survey/ApplianceSurvey.tsx";
+import { PriorityActions } from "./features/insights/components/PriorityActions.tsx";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
@@ -32,6 +33,7 @@ createRoot(document.getElementById("root")!).render(
               <Route path="insights" element={<InsightsPage />}>
                 <Route index element={<Navigate to={"health-score"} />} />
                 <Route path="health-score" element={<HealthScore />} />
+                <Route path="priority-actions" element={<PriorityActions />} />
               </Route>
             </Route>
             <Route path="appliances" element={<ApplianceSurvey />} />

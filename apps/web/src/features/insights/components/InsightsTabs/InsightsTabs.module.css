@@ -44,6 +44,7 @@
 }
 
 .Tabs_label__selected {
+  padding-top: 2px;
   color: #6d7268;
   border-bottom: 3px solid #6d7268;
   border-radius: 2px;

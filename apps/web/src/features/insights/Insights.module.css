@@ -36,8 +36,10 @@
 }
 
 .Insights_cardTitle {
-  font-size: 12px;
+  font-size: 16px;
   font-weight: bold;
+  margin: 0;
+  line-height: 18px;
 }
 
 .Insights_card__primary {
@@ -114,4 +116,69 @@ td {
 
 .AverageConsumption_number {
   text-align: end;
+}
+
+.PriorityAction_actionList {
+  display: flex;
+  gap: 8px;
+  flex-direction: column;
+}
+
+.PriorityAction_heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.PriorityAction_badge {
+  background-color: #fca191;
+  padding: 4px 8px;
+  border-radius: 24px;
+  height: fit-content;
+  font-size: 12px;
+}
+
+.PriorityAction_badge__medium {
+  background-color: #eecbaa;
+}
+
+.PriorityAction_description {
+  color: #6d7268;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.PriorityAction_buttonContainer {
+  display: flex;
+  padding-top: 16px;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.PriorityAction_button {
+  width: 100%;
+  border-radius: 12px;
+  border: none;
+  display: flex;
+  padding: 6px 12px;
+  gap: 4px;
+  font-size: 14px;
+  justify-content: center;
+  cursor: pointer;
+  align-items: center;
+}
+
+.PriorityAction_icon {
+  font-size: 20px !important;
+  font-variation-settings: "opsz" 32;
+}
+
+.PriorityAction_button__action {
+  background-color: #b8eeaa;
+  color: black;
+}
+
+.PriorityAction_button__dismiss {
+  background-color: #436548;
+  color: white;
 }
