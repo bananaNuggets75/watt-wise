@@ -1,7 +1,7 @@
 .NavBar {
   position: fixed;
   bottom: 0;
-  background-color: #e9eee5;
+  background-color: var(--bg-surface);
   padding: 4px;
   width: 100%;
   z-index: 999;
@@ -24,8 +24,8 @@
   background-color: transparent;
   border: none;
   cursor: pointer;
-  color: #6d7268;
-  border-radius: 12px;
+  color: var(--text-muted);
+  border-radius: var(--radius-medium);
   padding: 4px 0px;
   width: 5rem;
 }
@@ -35,7 +35,7 @@
 }
 
 .NavBar_menuButton___selected {
-  color: black;
+  color: var(--text-accent);
   font-weight: bold;
 }
 
@@ -48,12 +48,12 @@
 }
 
 .NavBar_menuButton:hover .NavBar_menuIconContainer {
-  background-color: #6d7268;
-  color: #e9eee5;
+  background-color: var(--text-muted);
+  color: var(--bg-surface);
 }
 
 .NavBar_menuIconContainer___selected {
-  background-color: black;
+  background-color: var(--bg-accent);
 }
 
 .NavBar_menuicon {
@@ -62,7 +62,7 @@
 
 .NavBar_menuicon___selected {
   font-variation-settings: "FILL" 100;
-  color: white;
+  color: var(--text-on-accent);
 }
 
 .NavBar_menuName {

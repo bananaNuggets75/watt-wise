@@ -2,7 +2,7 @@
   max-width: 480px;
   margin: 0 auto;
   padding: 12px;
-  color: #1a1a1a;
+  color: var(--text);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -23,13 +23,13 @@
 
 .Insights_sectionSubtitle {
   font-size: 12px;
-  color: #6d7268;
+  color: var(--text-muted);
 }
 
 .Insights_card {
   padding: 16px;
-  border-radius: 24px;
-  background-color: #e9eee5;
+  border-radius: var(--radius-large);
+  background-color: var(--bg-surface);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -43,7 +43,7 @@
 }
 
 .Insights_card__primary {
-  background-color: #b8eeaa;
+  background-color: var(--bg-primary);
 }
 
 .HealthCard_topRow {
@@ -58,28 +58,23 @@
 
 .HealthCard_badge {
   border-radius: 999px;
-  background-color: #436548;
+  background-color: var(--bg-accent);
   font-size: 12px;
-  color: white;
+  color: var(--text-on-accent);
   height: fit-content;
   padding: 4px 8px;
 }
 
-.HealthCard_progressBar {
-  border-radius: 24px;
-  border: none;
-}
-
 .ProgressBar_container {
-  background-color: #436548;
+  background-color: var(--bg-accent);
   width: 100%;
-  border-radius: 24px;
+  border-radius: var(--radius-large);
   height: 16px;
 }
 
 .ProgressBar_value {
-  background-color: white;
-  border-radius: 24px;
+  background-color: var(--background);
+  border-radius: var(--radius-large);
   height: 100%;
   width: 78%;
 }
@@ -91,7 +86,7 @@
 }
 
 .Benchmark_description__colored {
-  color: #436548;
+  color: var(--text-secondary);
 }
 
 .Comparison_placeholder {
@@ -110,8 +105,8 @@ td {
 }
 
 .AverageConsumption_table th {
-  color: #6d7268;
-  border-bottom: 1px solid #898d84;
+  color: var(--text-accent);
+  border-bottom: 1px solid var(--outline);
 }
 
 .AverageConsumption_number {
@@ -131,20 +126,20 @@ td {
 }
 
 .PriorityAction_badge {
-  background-color: #fca191;
+  background-color: var(--bg-danger);
   padding: 4px 8px;
-  border-radius: 24px;
+  border-radius: var(--radius-medium);
   height: fit-content;
   font-size: 12px;
   flex-shrink: 0;
 }
 
 .PriorityAction_badge__medium {
-  background-color: #eecbaa;
+  background-color: var(--bg-warning);
 }
 
 .PriorityAction_description {
-  color: #6d7268;
+  color: var(--text-muted);
   font-size: 12px;
   line-height: 16px;
 }
@@ -158,7 +153,7 @@ td {
 
 .PriorityAction_button {
   width: 100%;
-  border-radius: 12px;
+  border-radius: var(--radius-medium);
   border: none;
   display: flex;
   padding: 6px 12px;
@@ -175,11 +170,11 @@ td {
 }
 
 .PriorityAction_button__action {
-  background-color: #b8eeaa;
-  color: black;
+  background-color: var(--bg-primary);
+  color: var(--text-on-primary);
 }
 
 .PriorityAction_button__dismiss {
-  background-color: #436548;
-  color: white;
+  background-color: var(--text-muted);
+  color: var(--bg-surface);
 }
