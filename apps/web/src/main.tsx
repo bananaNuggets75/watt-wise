@@ -27,7 +27,8 @@ createRoot(document.getElementById("root")!).render(
           {/* Everything else needs a session — RequireAuth redirects to
               /login when there isn't a valid one. */}
           <Route element={<RequireAuth />}>
-            <Route index element={<BillUpload />} />
+            <Route index element={<Navigate to={"dashboard"} />} />
+            <Route path="upload" element={<BillUpload />} />
             <Route element={<HomeLayout />}>
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="insights" element={<InsightsPage />}>
