@@ -1,0 +1,173 @@
+.Simulator {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 12px;
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.Simulator_section {
+  padding-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.Simulator_sectionTitle {
+  font-size: 20px;
+  font-weight: bold;
+  margin: 0;
+}
+
+.Simulator_sectionSubtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.Simulator_card {
+  padding: 16px;
+  border-radius: var(--radius-large);
+  background-color: var(--bg-primary);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.SimulatorCard_header {
+  font-size: 16px;
+  color: var(--text-on-primary);
+  font-weight: 600;
+}
+
+.SimulatorCard_contentLayout {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+}
+
+.SimulatorCard_savingsNumber {
+  font-size: 36px;
+  line-height: 100%;
+  font-weight: bold;
+  font-family: monospace;
+}
+
+.SimulatorCard_reductionBadge {
+  color: var(--text-on-primary);
+  padding: 8px;
+  font-size: 12px;
+  background-color: var(--background);
+  border-radius: var(--radius-medium);
+  height: fit-content;
+}
+
+.SimulatorCard_currencyUnit {
+  color: var(--text-on-primary);
+}
+
+.Simulator_button {
+  border: none;
+  cursor: pointer;
+  padding: 16px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: bold;
+  box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.25);
+  transition: 100ms all;
+  background-color: var(--bg-accent);
+  color: var(--text-on-accent);
+}
+
+.Simulator_button:active {
+  transform: scale(0.98);
+  box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.25);
+}
+
+.Simulator_itemList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.SimulatorItem_container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: fit-content;
+  background-color: var(--bg-surface);
+  border-radius: var(--radius-large);
+  padding: 16px;
+}
+
+.SimulatorItem_icon {
+  background-color: var(--background);
+  padding: 4px;
+  border-radius: var(--radius-medium);
+  font-size: 28px !important;
+  height: 36px;
+  width: 36px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: var(--text-muted);
+}
+
+.SimulatorItem_contentLayout {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: 100%;
+}
+
+.SimulatorItem_label {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.SimulatorItem_description {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.SimulatorItem_toggle {
+  -webkit-appearance: none;
+  appearance: none;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  border-radius: var(--radius-medium);
+  outline: none;
+  font-size: 16px;
+  font-weight: bold;
+  transition: all 0.2s ease;
+  background-color: var(--background);
+  border: 2px solid var(--outline);
+}
+
+.SimulatorItem_toggle:hover {
+  background-color: var(--bg-surface);
+}
+
+.SimulatorItem_toggle:checked {
+  background-color: var(--bg-secondary);
+  border-color: var(--bg-accent);
+  color: var(--text-on-secondary);
+}
+
+.SimulatorItem_toggle:checked:hover {
+  background-color: var(--bg-secondary-hover);
+}
+
+.SimulatorItem_toggle::before {
+  content: "";
+}
+
+.SimulatorItem_toggle:checked::before {
+  content: "✓";
+}
