@@ -74,8 +74,8 @@ p {
 }
 
 .dashboard__button--primary {
-  background-color: var(--bg-accent);
-  color: var(--text-on-accent);
+  background-color: var(--bg-secondary);
+  color: var(--text-on-secondary);
 }
 
 .selector {
@@ -205,7 +205,7 @@ p {
 .monthly-card__placeholder {
   background-color: var(--text-muted);
   opacity: 0.8;
-  color: var(--text-on-accent);
+  color: var(--text-on-secondary);
   height: 160px;
   border-radius: 12px;
   display: flex;

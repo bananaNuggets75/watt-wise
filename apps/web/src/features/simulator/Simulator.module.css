@@ -76,8 +76,8 @@
   font-weight: bold;
   box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.25);
   transition: 100ms all;
-  background-color: var(--bg-accent);
-  color: var(--text-on-accent);
+  background-color: var(--bg-secondary);
+  color: var(--text-on-secondary);
 }
 
 .Simulator_button:active {
@@ -155,13 +155,13 @@
 }
 
 .SimulatorItem_toggle:checked {
-  background-color: var(--bg-secondary);
-  border-color: var(--bg-accent);
-  color: var(--text-on-secondary);
+  background-color: var(--bg-primary);
+  border-color: var(--text-on-primary);
+  color: var(--text-on-primary);
 }
 
 .SimulatorItem_toggle:checked:hover {
-  background-color: var(--bg-secondary-hover);
+  background-color: var(--bg-primary-hover);
 }
 
 .SimulatorItem_toggle::before {

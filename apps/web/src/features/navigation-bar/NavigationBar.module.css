@@ -30,12 +30,8 @@
   width: 5rem;
 }
 
-.NavBar_menuButton:hover {
-  opacity: 0.6;
-}
-
 .NavBar_menuButton___selected {
-  color: var(--text-accent);
+  color: var(--text-secondary);
   font-weight: bold;
 }
 
@@ -48,12 +44,15 @@
 }
 
 .NavBar_menuButton:hover .NavBar_menuIconContainer {
-  background-color: var(--text-muted);
-  color: var(--bg-surface);
+  background-color: var(--bg-surface-hover);
 }
 
 .NavBar_menuIconContainer___selected {
-  background-color: var(--bg-accent);
+  background-color: var(--bg-secondary);
+}
+
+.NavBar_menuButton:hover .NavBar_menuIconContainer___selected {
+  background-color: var(--bg-secondary-hover);
 }
 
 .NavBar_menuicon {
@@ -62,7 +61,7 @@
 
 .NavBar_menuicon___selected {
   font-variation-settings: "FILL" 100;
-  color: var(--text-on-accent);
+  color: var(--text-on-secondary);
 }
 
 .NavBar_menuName {

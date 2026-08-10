@@ -58,15 +58,16 @@
 
 .HealthCard_badge {
   border-radius: 999px;
-  background-color: var(--bg-accent);
+  background-color: var(--bg-surface);
   font-size: 12px;
-  color: var(--text-on-accent);
+  color: var(--text-on-primary);
+  font-weight: 600;
   height: fit-content;
   padding: 4px 8px;
 }
 
 .ProgressBar_container {
-  background-color: var(--bg-accent);
+  background-color: var(--text-on-primary);
   width: 100%;
   border-radius: var(--radius-large);
   height: 16px;
@@ -105,7 +106,7 @@ td {
 }
 
 .AverageConsumption_table th {
-  color: var(--text-accent);
+  color: var(--text-secondary);
   border-bottom: 1px solid var(--outline);
 }
 
@@ -175,6 +176,6 @@ td {
 }
 
 .PriorityAction_button__dismiss {
-  background-color: var(--text-muted);
-  color: var(--bg-surface);
+  background-color: var(--bg-secondary);
+  color: var(--text-on-secondary);
 }
