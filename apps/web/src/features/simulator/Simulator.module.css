@@ -99,6 +99,11 @@
   background-color: var(--bg-surface);
   border-radius: var(--radius-large);
   padding: 16px;
+  cursor: pointer;
+}
+
+.SimulatorItem_container:hover {
+  background-color: var(--bg-surface-hover);
 }
 
 .SimulatorItem_icon {

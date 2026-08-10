@@ -2,30 +2,53 @@ import "material-symbols/rounded.css";
 
 import styles from "./Simulator.module.css";
 import type { SimulatorItem } from "./types";
+import { useEffect, useState } from "react";
+import { SimulatorItemToggle } from "./components/SimulatorItemToggle";
 
 export const Simulator = () => {
   const simulatorData: SimulatorItem[] = [
     {
+      id: 0,
       icon: "climate_mini_split",
       label: "Switch to inverter AC",
       estSavings: 1450,
     },
     {
+      id: 1,
       icon: "hourglass",
       label: "Optimize operating hours",
       estSavings: 950,
     },
     {
+      id: 2,
       icon: "kitchen",
       label: "Replace old refrigerator",
       estSavings: 750,
     },
     {
+      id: 3,
       icon: "power",
       label: "Reduce idle appliance usage",
       estSavings: 350,
     },
   ];
+
+  const [selectedItems, setSelectedItems] = useState<Array<number>>([]);
+
+  const handleItemToggle = (itemId: number) => {
+    console.log("Before selected: ", selectedItems);
+    setSelectedItems((prevItems) => {
+      if (prevItems.includes(itemId)) {
+        return prevItems.filter((prevItem) => prevItem !== itemId);
+      } else {
+        return [...prevItems, itemId];
+      }
+    });
+  };
+
+  useEffect(() => {
+    console.log("After selected: ", selectedItems);
+  }, [selectedItems]);
 
   return (
     <div className={styles.Simulator}>
@@ -56,23 +79,12 @@ export const Simulator = () => {
         <div className={styles.Simulator_itemList}>
           {simulatorData.map((item) => {
             return (
-              <div className={styles.SimulatorItem_container}>
-                <div className={styles.SimulatorItem_icon}>
-                  <span className="material-symbols-rounded">{item.icon}</span>
-                </div>
-                <div className={styles.SimulatorItem_contentLayout}>
-                  <div className={styles.SimulatorItem_label}>{item.label}</div>
-                  <div className={styles.SimulatorItem_description}>
-                    Estimated savings: ₱{item.estSavings} / month
-                  </div>
-                </div>
-                <div>
-                  <input
-                    type="checkbox"
-                    className={styles.SimulatorItem_toggle}
-                  />
-                </div>
-              </div>
+              <SimulatorItemToggle
+                key={item.label}
+                item={item}
+                handleToggle={() => handleItemToggle(item.id)}
+                isEnabled={selectedItems.includes(item.id)}
+              />
             );
           })}
         </div>
