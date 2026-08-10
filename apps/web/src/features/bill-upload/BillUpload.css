@@ -37,7 +37,9 @@
   background: #eef7ee;
   color: #2f5233;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
 }
 
 .dropzone:hover {
@@ -97,6 +99,20 @@
   outline: none;
   border-color: #7cc07c;
   box-shadow: 0 0 0 3px rgba(124, 192, 124, 0.25);
+}
+
+.bill-form__back {
+  padding: 8px 16px;
+  border: 1px solid var(--outline);
+  border-radius: var(--radius-medium);
+  background: var(--bg-background);
+  color: var(--text);
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.bill-form__back:hover {
+  background-color: var(--bg-surface);
 }
 
 .bill-form__submit {

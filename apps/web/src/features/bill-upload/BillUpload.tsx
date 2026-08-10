@@ -10,8 +10,13 @@
  */
 
 import { useRef, useState } from "react";
-import { Link } from "react-router";
-import { ApiError, createBill, scanBill, type BillFormData } from "../../lib/api";
+import { Link, useNavigate } from "react-router";
+import {
+  ApiError,
+  createBill,
+  scanBill,
+  type BillFormData,
+} from "../../lib/api";
 import "./BillUpload.css";
 
 // Client-side mirror of the server's file rules, so we can reject bad
@@ -39,6 +44,7 @@ export function BillUpload() {
   const [scanning, setScanning] = useState(false);
   const [scanNote, setScanNote] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const navigate = useNavigate();
 
   /** Update one field of the manual form as the user types. */
   function handleField(field: keyof BillFormData, value: string) {
@@ -58,12 +64,29 @@ export function BillUpload() {
       const found: string[] = [];
       setForm((prev) => {
         const next = { ...prev };
-        if (scan.accountName) { next.accountName = scan.accountName; found.push("account name"); }
-        if (scan.provider) { next.provider = scan.provider; found.push("provider"); }
-        if (scan.kwhUsed !== undefined) { next.kwhUsed = String(scan.kwhUsed); found.push("kWh"); }
-        if (scan.amount !== undefined) { next.amount = String(scan.amount); found.push("amount"); }
-        if (scan.periodStart) { next.periodStart = scan.periodStart; found.push("period"); }
-        if (scan.periodEnd) { next.periodEnd = scan.periodEnd; }
+        if (scan.accountName) {
+          next.accountName = scan.accountName;
+          found.push("account name");
+        }
+        if (scan.provider) {
+          next.provider = scan.provider;
+          found.push("provider");
+        }
+        if (scan.kwhUsed !== undefined) {
+          next.kwhUsed = String(scan.kwhUsed);
+          found.push("kWh");
+        }
+        if (scan.amount !== undefined) {
+          next.amount = String(scan.amount);
+          found.push("amount");
+        }
+        if (scan.periodStart) {
+          next.periodStart = scan.periodStart;
+          found.push("period");
+        }
+        if (scan.periodEnd) {
+          next.periodEnd = scan.periodEnd;
+        }
         return next;
       });
       setScanNote(
@@ -128,6 +151,12 @@ export function BillUpload() {
 
   return (
     <div className="bill-upload">
+      <button
+        className="bill-form__back"
+        onClick={() => navigate("/dashboard")}
+      >
+        Back
+      </button>
       <h1 className="bill-upload__title">Scan Your Bill</h1>
       <p className="bill-upload__subtitle">
         Upload a photo of your electricity bill to auto-fill the form, or enter
@@ -250,7 +279,11 @@ export function BillUpload() {
           </div>
         )}
 
-        <button type="submit" className="bill-form__submit" disabled={submitting}>
+        <button
+          type="submit"
+          className="bill-form__submit"
+          disabled={submitting}
+        >
           {submitting ? "Saving…" : "Add bill"}
         </button>
       </form>
