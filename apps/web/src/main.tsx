@@ -15,6 +15,7 @@ import { HealthScore } from "./features/insights/components/HealthScore.tsx";
 import { ApplianceSurvey } from "./features/appliance-survey/ApplianceSurvey.tsx";
 import { PriorityActions } from "./features/insights/components/PriorityActions.tsx";
 import { Simulator } from "./features/simulator/Simulator.tsx";
+import { Profile } from "./features/profile/Profile.tsx";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
@@ -38,6 +39,7 @@ createRoot(document.getElementById("root")!).render(
                 <Route path="priority-actions" element={<PriorityActions />} />
               </Route>
               <Route path="simulator" element={<Simulator />} />
+              <Route path="profile" element={<Profile />} />
             </Route>
             <Route path="appliances" element={<ApplianceSurvey />} />
           </Route>
