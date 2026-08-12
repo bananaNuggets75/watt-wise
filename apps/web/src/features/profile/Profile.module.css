@@ -1,0 +1,154 @@
+.Profile {
+  background-color: var(--background);
+  color: var(--text);
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.Profile_section {
+  padding-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.Profile_sectionTitle {
+  font-size: 20px;
+  font-weight: bold;
+  margin: 0;
+}
+
+.Profile_sectionSubtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.Profile_accountDetails {
+  text-align: center;
+  padding: 24px 0px;
+}
+
+.Profile_card {
+  padding: 16px;
+  border-radius: var(--radius-large);
+  background-color: var(--bg-surface);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.PropertiesList_container {
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.PropertiesList_button {
+  border: none;
+  width: 100%;
+  font-size: 14px;
+  text-align: start;
+  padding: 8px;
+  border-radius: var(--radius-large);
+  background-color: var(--bg-surface);
+  color: var(--text-muted);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  cursor: pointer;
+}
+
+.PropertiesList_button:hover {
+  background-color: var(--bg-surface-hover);
+}
+
+.PropertiesList_button__active {
+  background-color: var(--bg-primary);
+  color: var(--text-on-primary);
+}
+
+.PropertiesList_button__active:hover {
+  background-color: var(--bg-primary-hover);
+  color: var(--text-on-primary);
+}
+
+.PropertiesList_button__add {
+  text-align: center;
+  font-weight: 600;
+  color: var(--text-muted);
+  background-color: transparent;
+  border: 2px dashed var(--outline);
+  justify-content: center;
+  padding: 12px 8px;
+}
+.PropertiesList_button__add:hover {
+  background-color: var(--bg-surface);
+}
+
+.PropertiesList_propertyName {
+  font-weight: bold;
+  color: var(--text);
+}
+
+.PropertiesList_propertyContent {
+  width: 100%;
+}
+
+.PropertiesList_icon {
+  padding: 4px;
+  background-color: var(--background);
+  border-radius: var(--radius-medium);
+  display: flex;
+}
+
+.AccountOptions_container {
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.AccountOptions_button {
+  border: none;
+  width: 100%;
+  font-size: 14px;
+  text-align: start;
+  padding: 4px 8px;
+  border-radius: var(--radius-large);
+  background-color: var(--bg-surface);
+  color: var(--text-muted);
+  display: flex;
+  gap: 8px;
+  font-weight: 600;
+  align-items: center;
+  cursor: pointer;
+}
+
+.AccountOptions_button:hover {
+  background-color: var(--bg-surface-hover);
+}
+
+.AccountOptions_button__logout {
+  background-color: var(--bg-danger);
+  color: var(--text);
+}
+
+.AccountOptions_button__logout:hover {
+  opacity: 0.8;
+  background-color: var(--bg-danger);
+}
+
+.AccountOptions_icon {
+  padding: 4px;
+  border-radius: var(--radius-medium);
+  display: flex;
+}

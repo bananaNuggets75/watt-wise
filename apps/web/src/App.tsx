@@ -25,9 +25,20 @@ function App() {
   return (
     <div className="app">
       <header className="app__header">
-        <span className="app__brand">WattWise</span>
+        <button
+          onClick={() => {
+            navigate("/");
+          }}
+          className="app__brand"
+        >
+          WattWise
+        </button>
         {signedIn && (
-          <button type="button" className="app__signout" onClick={handleSignOut}>
+          <button
+            type="button"
+            className="app__signout"
+            onClick={handleSignOut}
+          >
             Sign out
           </button>
         )}

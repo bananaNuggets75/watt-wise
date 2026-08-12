@@ -7,10 +7,11 @@ p {
   max-width: 480px;
   margin: 0 auto;
   padding: 12px;
-  color: #1a1a1a;
+  color: var(--text);
   display: flex;
   flex-direction: column;
   gap: 8px;
+  background-color: var(--background);
 }
 
 .dashboard__header {
@@ -22,14 +23,19 @@ p {
 .dashboard__card {
   padding: 16px;
   border-radius: 24px;
-  background-color: #e9eee5;
+  background-color: var(--bg-surface);
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
 .dashboard__card--green {
-  background-color: #b8eeaa;
+  background-color: var(--bg-primary);
+}
+
+.dashboard__card--secondary {
+  background-color: var(--bg-secondary);
+  color: var(--text-on-secondary);
 }
 
 .card__header {
@@ -68,14 +74,14 @@ p {
 }
 
 .dashboard__button--primary {
-  background-color: #142014;
-  color: white;
+  background-color: var(--bg-secondary);
+  color: var(--text-on-secondary);
 }
 
 .selector {
   background-color: white;
   padding: 8px;
-  border-radius: 24px;
+  border-radius: var(--radius-large);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
   display: flex;
   align-items: center;
@@ -92,8 +98,8 @@ p {
 .selector__avatar {
   height: 32px;
   width: 32px;
-  background-color: #b8eeaa;
-  border-radius: 100%;
+  background-color: var(--bg-primary);
+  border-radius: 9999px;
 }
 
 .health-card__content {
@@ -108,8 +114,9 @@ p {
 }
 
 .health-card__status {
-  border-radius: 9999px;
-  background-color: white;
+  border-radius: var(--radius-medium);
+  background-color: var(--text-on-primary);
+  color: var(--background);
   padding: 4px 8px;
   font-size: 12px;
   display: flex;
@@ -126,7 +133,7 @@ p {
 }
 
 .icon--color-primary {
-  color: #436548;
+  color: var(--text-on-primary);
 }
 
 .quick-links {
@@ -148,11 +155,11 @@ p {
   font-weight: bold;
   user-select: none;
   cursor: pointer;
-  border-radius: 12px;
+  border-radius: var(--radius-medium);
 }
 
 .quick-links__item:hover {
-  background-color: #d0d4cc;
+  background-color: var(--bg-surface-hover);
 }
 
 .priority-list {
@@ -185,18 +192,20 @@ p {
   border-radius: 50%;
 }
 .priority-list__indicator--high {
-  background-color: #fca191;
+  background-color: var(--bg-danger);
 }
 .priority-list__indicator--med {
-  background-color: #eecbaa;
+  background-color: var(--bg-warning);
 }
 
 .text--muted {
-  color: #777a74;
+  color: var(--text-muted);
 }
 
 .monthly-card__placeholder {
-  background-color: #d0d4cc;
+  background-color: var(--text-muted);
+  opacity: 0.8;
+  color: var(--text-on-secondary);
   height: 160px;
   border-radius: 12px;
   display: flex;

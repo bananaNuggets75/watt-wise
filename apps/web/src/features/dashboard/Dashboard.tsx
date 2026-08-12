@@ -1,12 +1,15 @@
 import "material-symbols/rounded.css";
 
 import "./Dashboard.css";
+import { useNavigate } from "react-router";
 
 /**
  * Energy dashboard component. This is what the user first sees when logged in.
  * Displays health score, quick links, top priority actions, and some statistics.
  */
 export function Dashboard() {
+  const navigate = useNavigate();
+
   return (
     <div className="dashboard">
       <div className="dashboard__header">
@@ -54,7 +57,10 @@ export function Dashboard() {
           <p>Partners</p>
         </li>
       </ul>
-      <button className="dashboard__button dashboard__button--primary dashboard__button--with-icon">
+      <button
+        className="dashboard__button dashboard__button--primary dashboard__button--with-icon"
+        onClick={() => navigate("/upload")}
+      >
         <span className="material-symbols-rounded">add</span>
         <p>Add a Bill</p>
       </button>

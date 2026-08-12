@@ -1,0 +1,181 @@
+.Insights {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 12px;
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.Insights_sectionTitle {
+  font-size: 20px;
+  font-weight: bold;
+  margin: 0;
+}
+
+.Insights_section {
+  padding-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.Insights_sectionSubtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.Insights_card {
+  padding: 16px;
+  border-radius: var(--radius-large);
+  background-color: var(--bg-surface);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.Insights_cardTitle {
+  font-size: 16px;
+  font-weight: bold;
+  margin: 0;
+  line-height: 18px;
+}
+
+.Insights_card__primary {
+  background-color: var(--bg-primary);
+}
+
+.HealthCard_topRow {
+  display: flex;
+  justify-content: space-between;
+}
+
+.HealthCard_value {
+  font-size: 36px;
+  font-weight: bold;
+}
+
+.HealthCard_badge {
+  border-radius: 999px;
+  background-color: var(--bg-surface);
+  font-size: 12px;
+  color: var(--text-on-primary);
+  font-weight: 600;
+  height: fit-content;
+  padding: 4px 8px;
+}
+
+.ProgressBar_container {
+  background-color: var(--text-on-primary);
+  width: 100%;
+  border-radius: var(--radius-large);
+  height: 16px;
+}
+
+.ProgressBar_value {
+  background-color: var(--background);
+  border-radius: var(--radius-large);
+  height: 100%;
+  width: 78%;
+}
+
+.Benchmark_description {
+  font-weight: bold;
+  text-align: center;
+  font-size: 12px;
+}
+
+.Benchmark_description__colored {
+  color: var(--text-secondary);
+}
+
+.Comparison_placeholder {
+  display: flex;
+  justify-content: center;
+  opacity: 0.8;
+  font-size: 12px;
+}
+
+.AverageConsumption_table,
+td {
+  border-collapse: collapse;
+  padding: 8px;
+  text-align: center;
+  font-size: 16px;
+}
+
+.AverageConsumption_table th {
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--outline);
+}
+
+.AverageConsumption_number {
+  text-align: end;
+}
+
+.PriorityAction_actionList {
+  display: flex;
+  gap: 8px;
+  flex-direction: column;
+}
+
+.PriorityAction_heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.PriorityAction_badge {
+  background-color: var(--bg-danger);
+  padding: 4px 8px;
+  border-radius: var(--radius-medium);
+  height: fit-content;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.PriorityAction_badge__medium {
+  background-color: var(--bg-warning);
+}
+
+.PriorityAction_description {
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.PriorityAction_buttonContainer {
+  display: flex;
+  padding-top: 16px;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.PriorityAction_button {
+  width: 100%;
+  border-radius: var(--radius-medium);
+  border: none;
+  display: flex;
+  padding: 6px 12px;
+  gap: 4px;
+  font-size: 14px;
+  justify-content: center;
+  cursor: pointer;
+  align-items: center;
+}
+
+.PriorityAction_icon {
+  font-size: 20px !important;
+  font-variation-settings: "opsz" 32;
+}
+
+.PriorityAction_button__action {
+  background-color: var(--bg-primary);
+  color: var(--text-on-primary);
+}
+
+.PriorityAction_button__dismiss {
+  background-color: var(--bg-secondary);
+  color: var(--text-on-secondary);
+}
