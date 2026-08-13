@@ -35,14 +35,18 @@ function signedOut() {
 
 /** Stub fetch with a canned response, returning the mock for inspection. */
 function mockFetch(body: unknown, { ok = true, status = 200 } = {}) {
-  const fetchMock = vi.fn(async () => ({ ok, status, json: async () => body }));
+  const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => ({
+    ok,
+    status,
+    json: async () => body,
+  }));
   vi.stubGlobal("fetch", fetchMock);
   return fetchMock;
 }
 
 /** The headers a fetch call was made with. */
 function headersOf(mock: ReturnType<typeof mockFetch>, call = 0): Record<string, string> {
-  const init = mock.mock.calls[call]?.[1] as RequestInit | undefined;
+  const init = mock.mock.calls[call]?.[1];
   return (init?.headers ?? {}) as Record<string, string>;
 }
 
@@ -131,7 +135,7 @@ describe("multipart requests", () => {
     const fetchMock = mockFetch({ id: "1" });
     await createBill(billForm, null);
 
-    const body = (fetchMock.mock.calls[0]?.[1] as RequestInit).body as FormData;
+    const body = fetchMock.mock.calls[0]?.[1]?.body as FormData;
     expect(body.get("accountName")).toBe("Cafe Marie");
     expect(body.get("kwhUsed")).toBe("312");
   });
@@ -140,7 +144,7 @@ describe("multipart requests", () => {
     const fetchMock = mockFetch({ id: "1" });
     await createBill(billForm, null);
 
-    const body = (fetchMock.mock.calls[0]?.[1] as RequestInit).body as FormData;
+    const body = fetchMock.mock.calls[0]?.[1]?.body as FormData;
     expect(body.get("file")).toBeNull();
   });
 });

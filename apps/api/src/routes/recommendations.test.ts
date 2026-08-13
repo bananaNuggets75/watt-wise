@@ -19,7 +19,7 @@ const validProfile = {
   amount: 1785.5,
 };
 
-function post(body: unknown) {
+function post(body: object) {
   return request(app).post("/api/recommendations").send(body);
 }
 

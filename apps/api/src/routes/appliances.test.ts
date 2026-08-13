@@ -22,7 +22,7 @@ const app = createApp();
 
 const asUser = (id: string) => ({ Authorization: `Bearer user:${id}` });
 
-function postAppliances(userId: string, body: unknown) {
+function postAppliances(userId: string, body: object) {
   return request(app).post("/api/appliances").set(asUser(userId)).send(body);
 }
 

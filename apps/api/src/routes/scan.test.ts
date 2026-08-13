@@ -36,7 +36,7 @@ function postScan(userId = "scanner", buffer = png, contentType = "image/png") {
 
 /** Stub global fetch with a canned OpenRouter response. */
 function mockOpenRouter(reply: { ok: boolean; status?: number; content?: string; body?: unknown }) {
-  const fetchMock = vi.fn(async () => ({
+  const fetchMock = vi.fn(async (_url: string, _init: RequestInit) => ({
     ok: reply.ok,
     status: reply.status ?? (reply.ok ? 200 : 500),
     json: async () =>
@@ -117,7 +117,7 @@ describe("a successful scan", () => {
     const fetchMock = mockOpenRouter({ ok: true, content: "{}" });
     await postScan();
 
-    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const [url, init] = fetchMock.mock.calls[0];
     expect(url).toContain("openrouter.ai");
     expect((init.headers as Record<string, string>).Authorization).toBe("Bearer test-key");
     expect(init.body as string).toContain("data:image/png;base64,");

@@ -1,0 +1,10 @@
+{
+  // Type-checks the test files, which tsconfig.json excludes so they stay out
+  // of the published dist/. Nothing is emitted here.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": ["src"],
+  "exclude": []
+}
