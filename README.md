@@ -13,8 +13,9 @@ wattwise/
 └── packages/     shared code (added later)
 ```
 
-Backend plan (next phase): **Supabase** for the database and the **OpenAI SDK**
-— deps are already listed in `apps/api/package.json`, wiring comes later.
+**Supabase** provides authentication and the Postgres database (schema in
+`supabase/migrations/`). Bills and appliances are still served from in-memory
+stores in the API; moving them onto those tables is the next step.
 
 ## Prerequisites
 
@@ -112,86 +113,91 @@ data source before it.
 
 A stored appliance is the engine's `ApplianceInput` plus ids, so survey rows
 can be passed to `POST /api/recommendations` unchanged. Entries submitted
-without an `accountId` land on a placeholder account until auth and the
-account picker exist. Storage is in-memory
-(`apps/api/src/store/applianceStore.ts`); the `appliances` table is already in
-`supabase/schema.sql`.
+without an `accountId` land on a placeholder account until the establishment
+picker exists. Storage is still in-memory
+(`apps/api/src/store/applianceStore.ts`) — moving it onto the `appliances`
+table in `supabase/migrations/` is the next step, and will also replace the
+`isInverter` boolean with the schema's per-kind subtypes.
 
 ### Authentication
 
-Email + password register and sign-in, so the app has a working login while
-the Supabase project is still being set up.
+Email + password sign-up and sign-in, backed by **Supabase Auth**.
 
 - **Web UI:** `apps/web/src/features/auth/` — `/register` and `/login`.
   Basic fields only; the visual design is a separate pass.
 - **Client:** `apps/web/src/lib/auth.ts` — every auth call goes through this
-  one module, which is what makes the switch to Supabase Auth a single-file
-  change. The token is kept in `localStorage` so a refresh doesn't sign the
-  user out.
-- **API:** `apps/api/src/routes/auth.ts`
-  - `POST /api/auth/register` — create an account and sign in. 409 if the
-    email is taken.
-  - `POST /api/auth/login` — sign in. Returns a deliberately vague 401 so it
-    can't be used to discover which emails are registered.
-  - `POST /api/auth/logout` — invalidate the token.
-  - `GET /api/auth/me` — resolve a bearer token back to its user.
+  one module (which is why swapping the earlier local implementation for
+  Supabase didn't touch the pages). Supabase persists the session and
+  refreshes the access token itself, so there is no token handling in app
+  code; `lib/session.ts` just reads the current token out of the client.
+- **API:** `apps/api/src/auth/verifyToken.ts` verifies the JWT against the
+  project's published key set (JWKS), cached after the first fetch — so a
+  request is checked locally rather than by calling Supabase each time.
+  Verifying the *signature* is the point: without it, anyone could hand-write
+  a token claiming to be any user.
 
-Passwords are hashed with scrypt and a per-user salt, and compared in
-constant time. Emails are stored lowercased, so sign-in is case-insensitive.
+The id in a verified token is the same uuid Postgres sees as `auth.uid()`, so
+route scoping and the RLS policies agree on who owns a row.
 
 **What's protected.** `requireAuth` (`apps/api/src/middleware/requireAuth.ts`)
-guards every bill and appliance route, and those rows carry a `userId`:
-listings filter by it, and single-row reads and deletes match on it too, so
-another user's id returns the same 404 as a missing row rather than
-confirming it exists. `POST /api/recommendations` stays open — it scores data
-supplied in the request and reads nothing from storage.
+guards every bill and appliance route, and handlers scope reads and writes to
+`req.user`. `POST /api/recommendations` stays open — it scores data supplied
+in the request and reads nothing from storage.
 
 On the web, `RequireAuth` (`apps/web/src/features/auth/RequireAuth.tsx`)
-wraps the protected pages. It verifies the token with the API rather than
-trusting that one is present, so a token left over from a previous run
-redirects to sign-in instead of stranding the user on a page whose every
-request fails, and it remembers the attempted path so signing in returns them
-there.
+wraps the protected pages, verifies the session rather than assuming a stored
+token is valid, and remembers the attempted path so signing in returns the
+user there.
 
-**This is a development stand-in, not production auth.** Users and sessions
-are in-memory (`apps/api/src/store/userStore.ts`), so both reset when the API
-restarts, and there is no email verification, password reset, or rate
-limiting. Replacing it with Supabase Auth means rewriting that store and
-`apps/web/src/lib/auth.ts`; the routes, pages, and `AuthUser`/session shapes
-were built to match what Supabase returns. The bill/appliance data is already
-schema-ready for it: accounts carry a placeholder `user_id` that becomes the
-real one, and the RLS policies in `supabase/schema.sql` are written and
-commented out.
+Sign-up currently signs the user straight in. If email confirmation is turned
+on in the Supabase dashboard, Supabase returns a user with **no session** —
+that case is surfaced as "check your email" rather than navigating to a page
+the user can't load yet.
 
 ## Database schema
 
-`supabase/schema.sql` defines the Postgres/Supabase schema:
+The schema lives in **`supabase/migrations/`** as ordered migrations, so
+changes are applied incrementally rather than by re-running one large file.
 
 ```
-accounts (1) ──< bills
-          (1) ──< appliances
+accounts (1) ──< establishments (1) ──< bills
+                                  (1) ──< appliances
 ```
 
-An **account** is one electricity account/location (e.g. "Cafe Marie"). Bills
-and appliances both hang off it — that account layer is what connects a
-user's data together, which is why it exists before users do.
+- **accounts** — one row per authenticated user, created automatically by a
+  trigger on sign-up. `auth.users` belongs to Supabase and can't be extended,
+  so this is the usual companion table.
+- **establishments** — a place whose electricity is tracked (a household, a
+  cafe, a branch). Every user has at least one; data hangs off the
+  establishment, so someone with two cafes keeps their bills separate.
+  Optional `latitude`/`longitude` support benchmarking against nearby
+  establishments of the same type.
+- **bills** / **appliances** — recorded per establishment.
+- **Lookup tables** — `establishment_types`, `providers`, `appliance_kinds`
+  and `appliance_subtypes`, seeded in their migration. Normalising these
+  replaces free-text provider names and the old `is_inverter` boolean, so
+  subtypes vary by kind (inverter for an aircon, OLED for a TV) and
+  "MERALCO" and "Meralco" are one provider. Providers are the one list users
+  can extend, since OCR regularly reads a cooperative that isn't seeded.
 
-Bills are grouped by **`customer_account_number`** (the "CAN" printed on the
-bill), so statements from different months land under the same account with
-no login required. The CAN is *not* a secret — it appears on every bill — so
-it groups data and must never be accepted as a credential.
+Two constraints worth knowing: appliances reference `(subtype_id, kind_id)`
+as a composite key, which makes an Air Conditioner of subtype "OLED"
+impossible to store; and `customer_account_number` (the "CAN" printed on a
+bill) is recorded per bill but is **not a secret** — it appears on every
+statement, so it must never be accepted as a credential.
 
-**Auth is not set up yet**, so `accounts.user_id` carries a fixed placeholder
-(`00000000-…-0000`) with no FK to `auth.users`. The "When auth arrives"
-section at the bottom of the file is the entire migration: point `user_id` at
-real users and enable the (already-written) row-level security policies.
-Claiming an account is then just setting its `user_id` — its bills and
-appliances come along unchanged.
+**Row-Level Security is enabled on every table.** Postgres filters by owner,
+so a missing `WHERE` clause in application code cannot leak another user's
+data — which is also why the anon key is safe to ship to the browser.
 
-Apply it to a database with:
+### Applying migrations
 
 ```bash
-psql -d <your-database> -f supabase/schema.sql
+# one-time: point the CLI at your project
+npx supabase link --project-ref <your-project-ref>
+
+npx supabase db push        # apply pending migrations
+npx supabase migration new <name>   # start a new one
 ```
 
 ### AI recommendation engine (v1)
