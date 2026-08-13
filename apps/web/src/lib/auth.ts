@@ -1,101 +1,85 @@
 /**
- * Auth client and session handling for the web app.
+ * Auth client, backed by Supabase Auth.
  *
- * Wraps the /api/auth endpoints and keeps the session token in
- * localStorage so a refresh doesn't sign the user out. Components call
- * these functions rather than fetching auth endpoints directly, which is
- * also what makes the eventual switch to Supabase Auth a change to this
- * file alone.
+ * The exported functions are unchanged from the temporary local
+ * implementation this replaces, so the register/login pages and the route
+ * guard didn't need editing — that was the point of routing every auth call
+ * through one module.
  *
- * The token itself lives in ./session, which the API client also reads so
- * it can authorise every request.
+ * Supabase stores and refreshes the session itself, so there is no token
+ * handling here; ./session reads the current access token out of the client
+ * for the API client to send.
  */
 
 import { ApiError } from "./api";
-import { clearToken, getToken, setToken } from "./session";
+import { isSupabaseConfigured, supabase } from "./supabase";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:4000";
-/** The signed-in user as the API returns it. */
+/** The signed-in user, trimmed to what the UI needs. */
 export interface AuthUser {
   id: string;
   email: string;
   createdAt: string;
 }
 
-interface AuthSession {
-  user: AuthUser;
-  token: string;
+/** Shown when the project hasn't been configured, instead of a network error. */
+const NOT_CONFIGURED =
+  "Supabase isn't configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to apps/web/.env.";
+
+/** Map a Supabase user onto our shape. */
+function toAuthUser(user: { id: string; email?: string; created_at: string }): AuthUser {
+  return { id: user.id, email: user.email ?? "", createdAt: user.created_at };
 }
 
 /**
- * POST credentials to an auth endpoint and store the returned token.
- * Shared by register and login, which differ only in the path.
+ * Create an account.
+ *
+ * When email confirmation is enabled in the Supabase dashboard, sign-up
+ * returns a user but no session — the account isn't usable until the link is
+ * clicked. That case is reported as an error so the UI doesn't send someone
+ * to a page they can't load yet.
  */
-async function submitCredentials(
-  path: "register" | "login",
-  email: string,
-  password: string,
-): Promise<AuthUser> {
-  const res = await fetch(`${API_URL}/api/auth/${path}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
-  });
-  const data = await res.json().catch(() => ({}));
+export async function register(email: string, password: string): Promise<AuthUser> {
+  if (!isSupabaseConfigured) throw new ApiError(NOT_CONFIGURED, 500);
 
-  if (!res.ok) {
+  const { data, error } = await supabase.auth.signUp({ email, password });
+  if (error) throw new ApiError(error.message, error.status ?? 400);
+  if (!data.user) throw new ApiError("Sign-up failed.", 400);
+
+  if (!data.session) {
     throw new ApiError(
-      data.message ?? data.error ?? "Authentication failed",
-      res.status,
-      data.details,
+      "Check your email to confirm your account, then sign in.",
+      400,
     );
   }
-
-  const session = data as AuthSession;
-  setToken(session.token);
-  return session.user;
-}
-
-/** Create an account and sign in. */
-export function register(email: string, password: string): Promise<AuthUser> {
-  return submitCredentials("register", email, password);
+  return toAuthUser(data.user);
 }
 
 /** Sign in with an existing account. */
-export function login(email: string, password: string): Promise<AuthUser> {
-  return submitCredentials("login", email, password);
+export async function login(email: string, password: string): Promise<AuthUser> {
+  if (!isSupabaseConfigured) throw new ApiError(NOT_CONFIGURED, 500);
+
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) throw new ApiError(error.message, error.status ?? 401);
+  if (!data.user) throw new ApiError("Incorrect email or password.", 401);
+
+  return toAuthUser(data.user);
 }
 
-/**
- * Sign out. The token is cleared locally even if the server call fails,
- * so the user is never left appearing signed in.
- */
+/** Sign out, clearing the stored session. */
 export async function logout(): Promise<void> {
-  const token = getToken();
-  clearToken();
-  if (!token) return;
-  await fetch(`${API_URL}/api/auth/logout`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
-  }).catch(() => undefined);
+  if (!isSupabaseConfigured) return;
+  await supabase.auth.signOut();
 }
 
 /**
- * Restore the session on page load. Returns null when there's no token or
- * the stored one is no longer valid (e.g. the API restarted), clearing the
- * stale token in that case.
+ * Resolve the current user, or null when signed out. Supabase refreshes an
+ * expired access token as part of this call, so a returning user stays
+ * signed in without any token juggling here.
  */
 export async function getCurrentUser(): Promise<AuthUser | null> {
-  const token = getToken();
-  if (!token) return null;
+  if (!isSupabaseConfigured) return null;
 
-  const res = await fetch(`${API_URL}/api/auth/me`, {
-    headers: { Authorization: `Bearer ${token}` },
-  }).catch(() => null);
-
-  if (!res?.ok) {
-    clearToken();
-    return null;
-  }
-  return (await res.json()) as AuthUser;
+  const { data, error } = await supabase.auth.getUser();
+  if (error || !data.user) return null;
+  return toAuthUser(data.user);
 }

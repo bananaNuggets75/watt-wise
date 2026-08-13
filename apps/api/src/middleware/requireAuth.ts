@@ -1,25 +1,25 @@
 /**
  * Authentication middleware.
  *
- * Rejects requests without a valid bearer token, and attaches the resolved
- * user to the request so handlers can scope data to its owner. Applying this
- * is what stops one user's bills being readable by anyone who asks.
+ * Rejects requests without a valid Supabase access token, and attaches the
+ * verified user to the request so handlers can scope data to its owner.
+ * Applying this is what stops one user's bills being readable by anyone who
+ * asks.
  *
- * When auth moves to Supabase, only `getUserByToken` changes — verifying a
- * Supabase JWT instead of looking up a local session. Handlers keep reading
- * `req.user`.
+ * The user id here is the same uuid Postgres sees as auth.uid(), so the
+ * scoping done in the handlers and the Row-Level Security policies in
+ * supabase/migrations agree on who owns a row.
  */
 
 import type { NextFunction, Request, Response } from "express";
-import { getUserByToken } from "../store/userStore.js";
-import type { PublicUser } from "../types/user.js";
+import { verifyAccessToken, type VerifiedUser } from "../auth/verifyToken.js";
 
 // Make `req.user` known to TypeScript across the app.
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
-      user?: PublicUser;
+      user?: VerifiedUser;
     }
   }
 }
@@ -32,11 +32,15 @@ function bearerToken(header: string | undefined): string | undefined {
 
 /**
  * Require a signed-in user. Responds 401 and stops the chain when the token
- * is missing, malformed, or no longer valid (e.g. after logout or a restart).
+ * is missing, malformed, expired, or not signed by this Supabase project.
  */
-export function requireAuth(req: Request, res: Response, next: NextFunction): void {
+export async function requireAuth(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   const token = bearerToken(req.headers.authorization);
-  const user = token ? getUserByToken(token) : undefined;
+  const user = token ? await verifyAccessToken(token) : null;
 
   if (!user) {
     res.status(401).json({

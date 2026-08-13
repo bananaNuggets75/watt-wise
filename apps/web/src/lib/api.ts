@@ -5,8 +5,8 @@
  * hardcode URLs or duplicate fetch/error logic. The base URL is read from
  * VITE_API_URL at build time and falls back to the local dev server.
  *
- * Every request carries the session token: the bill and appliance routes
- * require it and scope their data to the signed-in user. Note that the
+ * Every request carries the Supabase access token: the bill and appliance
+ * routes require it and scope their data to the signed-in user. Note that the
  * multipart calls pass only the auth header — setting Content-Type by hand
  * would clobber the boundary the browser generates for FormData.
  */
@@ -71,7 +71,7 @@ export async function createBill(form: BillFormData, file: File | null): Promise
 
   const res = await fetch(`${API_URL}/api/bills`, {
     method: "POST",
-    headers: authHeaders(),
+    headers: await authHeaders(),
     body,
   });
   const data = await res.json().catch(() => ({}));
@@ -89,7 +89,7 @@ export async function createBill(form: BillFormData, file: File | null): Promise
 
 /** Fetch all stored bills, newest first. */
 export async function listBills(): Promise<Bill[]> {
-  const res = await fetch(`${API_URL}/api/bills`, { headers: authHeaders() });
+  const res = await fetch(`${API_URL}/api/bills`, { headers: await authHeaders() });
   if (!res.ok) throw new ApiError("Failed to load bills", res.status);
   return (await res.json()) as Bill[];
 }
@@ -121,7 +121,7 @@ export interface ApplianceDraft {
 export async function saveAppliances(drafts: ApplianceDraft[]): Promise<Appliance[]> {
   const res = await fetch(`${API_URL}/api/appliances`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
+    headers: { "Content-Type": "application/json", ...(await authHeaders()) },
     body: JSON.stringify(drafts),
   });
   const data = await res.json().catch(() => ({}));
@@ -158,7 +158,7 @@ export async function scanBill(file: File): Promise<ScanResult> {
 
   const res = await fetch(`${API_URL}/api/bills/scan`, {
     method: "POST",
-    headers: authHeaders(),
+    headers: await authHeaders(),
     body,
   });
   const data = await res.json().catch(() => ({}));
