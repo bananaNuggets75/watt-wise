@@ -57,7 +57,14 @@ create table if not exists public.bills (
   provider_id uuid references public.providers (id) on delete restrict,
 
   -- The utility's own account number printed on the bill ("CAN" on a Meralco
-  -- bill). Useful for matching statements to an establishment.
+  -- bill). Recorded because it identifies the utility account a statement
+  -- came from, which helps match an upload to the right establishment.
+  --
+  -- It is NOT how data is grouped. Grouping by CAN was a workaround from
+  -- before there were users: with no login, it was the only stable key for
+  -- tying a month's bills together. Establishments do that job now, so this
+  -- is plain bill metadata.
+  --
   -- SECURITY: printed on every bill, so it is not a secret and must never be
   -- accepted as a credential.
   customer_account_number text,

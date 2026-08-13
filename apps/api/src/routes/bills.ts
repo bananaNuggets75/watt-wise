@@ -18,7 +18,7 @@
 import { Router } from "express";
 import multer from "multer";
 import { createBill, getBill, listBills } from "../store/billStore.js";
-import { getBillScanner } from "../ocr/index.js";
+import { getBillScanner, isScanAvailable } from "../ocr/index.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 import type { BillFileMeta, BillInput } from "../types/bill.js";
 
@@ -50,8 +50,8 @@ const upload = multer({
 });
 
 /**
- * Separate upload config for OCR: Tesseract reads raster images, not PDFs,
- * so scanning is restricted to JPG / PNG. The size cap is shared.
+ * Separate upload config for OCR: scanning is restricted to JPG / PNG, since
+ * the vision model is sent a raster image. The size cap is shared.
  */
 const IMAGE_MIME = new Set(["image/jpeg", "image/png"]);
 const uploadImage = multer({
@@ -139,7 +139,15 @@ billsRouter.post("/scan", uploadImage.single("file"), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: "NO_IMAGE", message: "Attach a JPG or PNG image to scan." });
   }
-  // The scanner (Tesseract or OpenRouter vision) is chosen by the factory.
+  // Say so plainly rather than degrading to a worse reader: manual entry
+  // still works, so the user isn't blocked either way.
+  if (!isScanAvailable()) {
+    return res.status(503).json({
+      error: "SCAN_UNAVAILABLE",
+      message: "Bill scanning isn't configured. Enter the details manually.",
+    });
+  }
+  // Obtained via the factory so the model can change without touching this.
   const scanner = getBillScanner();
   try {
     const result = await scanner.scan(req.file.buffer, req.file.mimetype);

@@ -5,7 +5,7 @@
  * form. When the dropped file is an image (JPG/PNG), it's sent to the OCR
  * endpoint and the recognised values pre-fill the form — the user then
  * verifies/corrects before saving. Manual entry is always the fallback, so
- * a bad scan never blocks the user. On submit everything is posted as
+ * a bad or unavailable scan never blocks the user. On submit everything is posted as
  * multipart/form-data via the API client.
  */
 
@@ -118,8 +118,8 @@ export function BillUpload() {
       return;
     }
     setFile(selected);
-    // Images can be OCR'd to pre-fill the form; PDFs can't (Tesseract reads
-    // raster images only), so they're just attached for record-keeping.
+    // Images can be scanned to pre-fill the form; PDFs aren't sent to the
+    // vision model, so they're just attached for record-keeping.
     if (selected.type === "image/jpeg" || selected.type === "image/png") {
       void autoFillFromScan(selected);
     }
