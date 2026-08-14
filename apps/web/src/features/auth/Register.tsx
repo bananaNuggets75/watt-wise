@@ -9,6 +9,7 @@ import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { ApiError } from "../../lib/api";
 import { register } from "../../lib/auth";
+import { PasswordField } from "./PasswordField";
 import "./Auth.css";
 
 export function Register() {
@@ -66,29 +67,21 @@ export function Register() {
           />
         </label>
 
-        <label className="auth__field">
-          <span>Password</span>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="At least 8 characters"
-            autoComplete="new-password"
-            minLength={8}
-            required
-          />
-        </label>
+        <PasswordField
+          label="Password"
+          value={password}
+          onChange={setPassword}
+          placeholder="At least 8 characters"
+          autoComplete="new-password"
+          minLength={8}
+        />
 
-        <label className="auth__field">
-          <span>Confirm password</span>
-          <input
-            type="password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            autoComplete="new-password"
-            required
-          />
-        </label>
+        <PasswordField
+          label="Confirm password"
+          value={confirmPassword}
+          onChange={setConfirmPassword}
+          autoComplete="new-password"
+        />
 
         {errors.length > 0 && (
           <ul className="auth__errors">
