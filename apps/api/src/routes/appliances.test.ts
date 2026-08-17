@@ -10,6 +10,9 @@ import request from "supertest";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("../auth/verifyToken.js", () => ({
+  // The middleware checks this first; without it the mock is incomplete and
+  // requests hang rather than failing visibly.
+  isAuthConfigured: () => true,
   verifyAccessToken: async (token: string) => {
     if (!token.startsWith("user:")) return null;
     const id = token.slice("user:".length);

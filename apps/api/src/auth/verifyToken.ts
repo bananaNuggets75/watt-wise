@@ -25,6 +25,11 @@ export interface VerifiedUser {
  */
 let jwks: ReturnType<typeof createRemoteJWKSet> | null = null;
 
+/** True when the API has a project to verify tokens against. */
+export function isAuthConfigured(): boolean {
+  return Boolean(process.env.SUPABASE_URL);
+}
+
 function getJwks(): ReturnType<typeof createRemoteJWKSet> | null {
   const url = process.env.SUPABASE_URL;
   if (!url) return null;

@@ -12,7 +12,7 @@
  */
 
 import type { NextFunction, Request, Response } from "express";
-import { verifyAccessToken, type VerifiedUser } from "../auth/verifyToken.js";
+import { isAuthConfigured, verifyAccessToken, type VerifiedUser } from "../auth/verifyToken.js";
 
 // Make `req.user` known to TypeScript across the app.
 declare global {
@@ -39,6 +39,24 @@ export async function requireAuth(
   res: Response,
   next: NextFunction,
 ): Promise<void> {
+  // Distinguish "this deployment can't verify anyone" from "your token is no
+  // good". Both reject the request, but only one is the caller's problem —
+  // reporting a misconfiguration as "sign in" sends people to debug their
+  // login when the actual fault is a missing SUPABASE_URL.
+  if (!isAuthConfigured()) {
+    console.error(
+      "[auth] SUPABASE_URL is not set, so no token can be verified and every " +
+        "request will be rejected. Set it in apps/api/.env and restart — note " +
+        "that dotenv reads the file once at startup, so an already-running " +
+        "server won't pick up a change.",
+    );
+    res.status(503).json({
+      error: "AUTH_NOT_CONFIGURED",
+      message: "The server can't verify sign-ins. SUPABASE_URL is not set.",
+    });
+    return;
+  }
+
   const token = bearerToken(req.headers.authorization);
   const user = token ? await verifyAccessToken(token) : null;
 
