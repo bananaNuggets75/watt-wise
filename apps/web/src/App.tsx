@@ -1,7 +1,8 @@
-import { Outlet, useLocation, useNavigate } from "react-router";
+import { useEffect, useState } from "react";
+import { Outlet, useNavigate } from "react-router";
 
 import { logout } from "./lib/auth";
-import { getToken } from "./lib/session";
+import { supabase } from "./lib/supabase";
 import "./App.css";
 
 /**
@@ -11,11 +12,17 @@ import "./App.css";
  */
 function App() {
   const navigate = useNavigate();
-  // Signing in and out happen on child routes, which change the location and
-  // so re-render this component — meaning the token can simply be read here
-  // rather than mirrored into state.
-  useLocation();
-  const signedIn = getToken() !== null;
+  const [signedIn, setSignedIn] = useState(false);
+
+  // Subscribe to Supabase's auth state. It's an external system, which is
+  // what effects are for: the callback fires on sign-in, sign-out and token
+  // refresh, keeping the header correct without polling for a token.
+  useEffect(() => {
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSignedIn(session !== null);
+    });
+    return () => data.subscription.unsubscribe();
+  }, []);
 
   async function handleSignOut() {
     await logout();

@@ -1,56 +1,30 @@
-import "dotenv/config";
-import express, { type NextFunction, type Request, type Response } from "express";
-import cors from "cors";
-import { MulterError } from "multer";
-import { billsRouter } from "./routes/bills.js";
-import { recommendationsRouter } from "./routes/recommendations.js";
-import { appliancesRouter } from "./routes/appliances.js";
-import { authRouter } from "./routes/auth.js";
+/**
+ * Server entry point. The app itself is assembled in app.ts; this file only
+ * starts it listening.
+ */
 
-const app = express();
+import "dotenv/config";
+import { createApp } from "./app.js";
+import { isAuthConfigured } from "./auth/verifyToken.js";
+
 const PORT = process.env.PORT ?? 4000;
 
-app.use(cors());
-app.use(express.json());
-
-// Health check - hit this to confirm the backend is up.
-app.get("/health", (_req, res) => {
-  res.json({ status: "ok", service: "wattwise-api", time: new Date().toISOString() });
-});
-
-// Utility bill upload / input module.
-app.use("/api/bills", billsRouter);
-
-// AI recommendation engine (v1).
-app.use("/api/recommendations", recommendationsRouter);
-
-// Appliance survey.
-app.use("/api/appliances", appliancesRouter);
-
-// Authentication (local stand-in for Supabase Auth).
-app.use("/api/auth", authRouter);
-
-/**
- * Central error handler. Must be registered after the routes. It translates
- * the two failure modes that the bill upload can hit into clean 400
- * responses instead of a generic 500:
- *   - multer LIMIT_FILE_SIZE   -> file over the 10 MB cap
- *   - our fileFilter rejection -> unsupported file type
- * Anything else falls through to a 500.
- */
-app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
-  if (err instanceof MulterError && err.code === "LIMIT_FILE_SIZE") {
-    return res.status(400).json({ error: "FILE_TOO_LARGE", message: "Max file size is 10 MB." });
-  }
-  if (err instanceof Error && err.message === "UNSUPPORTED_FILE_TYPE") {
-    return res
-      .status(400)
-      .json({ error: "UNSUPPORTED_FILE_TYPE", message: "Only JPG, PNG, or PDF files are allowed." });
-  }
-  console.error("[api] unhandled error:", err);
-  return res.status(500).json({ error: "INTERNAL_ERROR" });
-});
-
-app.listen(PORT, () => {
+createApp().listen(PORT, () => {
   console.log(`WattWise API listening on http://localhost:${PORT}`);
+
+  // Say this at startup rather than letting it surface as a puzzling 401 on
+  // the first request. dotenv reads .env once, here — so a server started
+  // before the file was filled in stays unconfigured until it restarts.
+  if (!isAuthConfigured()) {
+    console.warn(
+      "[auth] SUPABASE_URL is not set — every authenticated request will be " +
+        "rejected. Set it in apps/api/.env and restart this server.",
+    );
+  }
+  if (!process.env.OPENROUTER_API_KEY) {
+    console.warn(
+      "[ocr] OPENROUTER_API_KEY is not set — bill scanning is unavailable. " +
+        "Manual entry still works.",
+    );
+  }
 });

@@ -1,11 +1,11 @@
 /**
  * Vision-model OCR via OpenRouter.
  *
- * Sends the bill image to a multimodal LLM that reads the layout directly —
- * far more reliable than Tesseract on messy real-world bill photos. It asks
- * the model to return the fields as JSON, then parses that into an OcrResult
- * (the same shape Tesseract returns), so the /scan route and web UI don't
- * care which engine produced it.
+ * Sends the bill image to a multimodal LLM that reads the layout directly.
+ * The model is asked for JSON, which `parseVisionReply` turns into an
+ * OcrResult. That parsing is a pure function, kept separate from the network
+ * call so it can be tested against real model replies — including the
+ * malformed ones, which is where the bugs live.
  *
  * WARNING: the default model is a FREE OpenRouter endpoint, and free
  * endpoints LOG all inputs/outputs for provider training. A utility bill
@@ -14,7 +14,7 @@
  * endpoint. For production, use a paid, no-logging model here.
  */
 
-import type { OcrResult } from "./billOcr.js";
+import type { OcrResult } from "../types/ocr.js";
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 // OCR-specialised free vision model; override with OCR_MODEL if desired.
@@ -67,6 +67,25 @@ function extractJson(text: string): Record<string, unknown> | null {
 }
 
 /**
+ * Turn a model reply into an OcrResult. Pure and total: any field the model
+ * omitted, nulled, or returned in an unusable form comes back undefined, so
+ * a partial or malformed reply degrades to "the user types that one in"
+ * rather than throwing.
+ */
+export function parseVisionReply(rawText: string): OcrResult {
+  const parsed = extractJson(rawText) ?? {};
+  return {
+    accountName: typeof parsed.accountName === "string" ? parsed.accountName : undefined,
+    provider: typeof parsed.provider === "string" ? parsed.provider : undefined,
+    kwhUsed: toNumber(parsed.kwhUsed),
+    amount: toNumber(parsed.amount),
+    periodStart: toIsoDate(parsed.periodStart),
+    periodEnd: toIsoDate(parsed.periodEnd),
+    rawText,
+  };
+}
+
+/**
  * OCR a bill image with the OpenRouter vision model. Requires
  * OPENROUTER_API_KEY. Throws on auth/network/API errors so the caller can
  * surface a clear failure (the web UI then falls back to manual entry).
@@ -114,16 +133,5 @@ export async function scanBillWithVision(
     choices?: Array<{ message?: { content?: string } }>;
   };
   const rawText = payload.choices?.[0]?.message?.content ?? "";
-
-  // Parse the model's JSON; leave fields undefined if it didn't comply.
-  const parsed = extractJson(rawText) ?? {};
-  return {
-    accountName: typeof parsed.accountName === "string" ? parsed.accountName : undefined,
-    provider: typeof parsed.provider === "string" ? parsed.provider : undefined,
-    kwhUsed: toNumber(parsed.kwhUsed),
-    amount: toNumber(parsed.amount),
-    periodStart: toIsoDate(parsed.periodStart),
-    periodEnd: toIsoDate(parsed.periodEnd),
-    rawText,
-  };
+  return parseVisionReply(rawText);
 }

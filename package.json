@@ -10,7 +10,9 @@
     "start": "turbo run start",
     "dev:web": "turbo run dev --filter=web",
     "dev:api": "turbo run dev --filter=api",
-    "dev:mobile": "turbo run dev --filter=mobile"
+    "dev:mobile": "turbo run dev --filter=mobile",
+    "test": "turbo run test",
+    "test:db": "./scripts/test-migrations.sh"
   },
   "devDependencies": {
     "turbo": "^2.5.0",

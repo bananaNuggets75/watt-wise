@@ -1,35 +1,27 @@
 /**
- * Session token storage.
+ * Access to the current session token, for authorising API calls.
  *
- * Kept in its own module because both the auth client (which obtains the
- * token) and the API client (which sends it on every request) need it —
- * importing it from either one would create a cycle between them.
+ * Supabase owns the session — it persists it and refreshes an expired access
+ * token — so this reads from the client rather than storing anything itself.
+ * These are async because refreshing may require a round trip.
  *
- * Note: localStorage is readable by any script on the page, so this is
- * vulnerable to XSS. It's the same default Supabase's client uses, and an
- * accepted trade-off for this MVP; hardening would move to an httpOnly
- * cookie set by the server.
+ * Kept separate from ./auth because the API client also needs it, and
+ * importing it from there would create a cycle between the two modules.
  */
 
-const TOKEN_KEY = "wattwise.token";
+import { supabase } from "./supabase";
 
-export function getToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY);
-}
-
-export function setToken(token: string): void {
-  localStorage.setItem(TOKEN_KEY, token);
-}
-
-export function clearToken(): void {
-  localStorage.removeItem(TOKEN_KEY);
+/** The current access token, or null when signed out. */
+export async function getAccessToken(): Promise<string | null> {
+  const { data } = await supabase.auth.getSession();
+  return data.session?.access_token ?? null;
 }
 
 /**
  * Authorization header for API calls, or an empty object when signed out —
  * spread into a fetch's headers so callers don't branch on it.
  */
-export function authHeaders(): Record<string, string> {
-  const token = getToken();
+export async function authHeaders(): Promise<Record<string, string>> {
+  const token = await getAccessToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
 }

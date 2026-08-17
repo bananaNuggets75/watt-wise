@@ -53,6 +53,46 @@
   box-shadow: 0 0 0 3px rgba(124, 192, 124, 0.25);
 }
 
+/* Password input with its reveal toggle sitting inside the field. */
+.auth__password {
+  position: relative;
+  display: flex;
+}
+
+.auth__password input {
+  flex: 1;
+  /* Room for the toggle so long values don't run underneath it. */
+  padding-right: 44px;
+}
+
+.auth__reveal {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+}
+
+.auth__reveal:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.auth__reveal svg {
+  width: 19px;
+  height: 19px;
+}
+
 .auth__submit {
   margin-top: 6px;
   padding: 13px;

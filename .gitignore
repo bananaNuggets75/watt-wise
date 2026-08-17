@@ -23,7 +23,7 @@ apps/mobile/.flutter-plugins
 apps/mobile/.flutter-plugins-dependencies
 apps/mobile/ios/Pods/
 
-# tesseract OCR language data (downloaded & cached at runtime)
+# stray OCR model data (never commit: ~5 MB binaries)
 *.traineddata
 
 # misc
