@@ -36,7 +36,10 @@ export function Register() {
     setErrors([]);
     try {
       await register(email, password);
-      navigate(from, { replace: true });
+      // A new account owns no establishment yet, and nothing can be recorded
+      // without one — so onboarding comes first. It forwards to `from` once
+      // the establishment exists.
+      navigate("/establishment", { replace: true, state: { from } });
     } catch (err) {
       // ApiError carries the API's per-field validation messages.
       if (err instanceof ApiError) {

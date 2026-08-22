@@ -16,6 +16,7 @@ import { ApplianceSurvey } from "./features/appliance-survey/ApplianceSurvey.tsx
 import { PriorityActions } from "./features/insights/components/PriorityActions.tsx";
 import { Simulator } from "./features/simulator/Simulator.tsx";
 import { Profile } from "./features/profile/Profile.tsx";
+import { EstablishmentSetup } from "./features/onboarding/EstablishmentSetup.tsx";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
@@ -30,6 +31,9 @@ createRoot(document.getElementById("root")!).render(
               /login when there isn't a valid one. */}
           <Route element={<RequireAuth />}>
             <Route index element={<Navigate to={"dashboard"} />} />
+            {/* Onboarding: registration sends new users here, because bills
+                and appliances can't be recorded without an establishment. */}
+            <Route path="establishment" element={<EstablishmentSetup />} />
             <Route path="upload" element={<BillUpload />} />
             <Route element={<HomeLayout />}>
               <Route path="dashboard" element={<Dashboard />} />
