@@ -20,6 +20,12 @@ declare global {
   namespace Express {
     interface Request {
       user?: VerifiedUser;
+      /**
+       * The verified bearer token itself. Kept so handlers that query
+       * Supabase can forward it and have their queries run as this user,
+       * leaving Row-Level Security in force — see store/supabaseClient.ts.
+       */
+      accessToken?: string;
     }
   }
 }
@@ -69,5 +75,6 @@ export async function requireAuth(
   }
 
   req.user = user;
+  req.accessToken = token;
   next();
 }

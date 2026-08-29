@@ -17,6 +17,14 @@ import { authHeaders } from "./session";
 // local Express server; set VITE_API_URL in a .env for other environments.
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:4000";
 
+/**
+ * Absolute URL for an API path. Exported so sibling modules (establishments)
+ * resolve against the same base instead of reading the env var again.
+ */
+export function apiUrl(path: string): string {
+  return `${API_URL}${path}`;
+}
+
 /** Shape of a bill as returned by the API (mirrors apps/api Bill type). */
 export interface Bill {
   id: string;

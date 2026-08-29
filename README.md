@@ -95,6 +95,33 @@ Run both apps together and open the web app:
 pnpm dev          # web (:5173) + api (:4000)
 ```
 
+### Establishment survey (onboarding)
+
+The first screen after registration. An establishment is the layer that owns
+data — bills and appliances both hang off one — and its type and provider are
+required columns, so it can't be created by the signup trigger. Registration
+therefore sends new users to `/establishment` before anywhere else, and that
+page forwards them on once it's saved.
+
+- **Web UI:** `apps/web/src/features/onboarding/` at `/establishment` — name,
+  type, optional address, and electric utility. Both dropdowns are filled from
+  the API rather than hardcoded, so a utility added later appears with no
+  frontend change.
+- **API:** `apps/api/src/routes/establishments.ts`
+  - `GET /api/establishments/types` — the seeded establishment types.
+  - `GET /api/establishments/providers` — the electric utilities on offer.
+  - `POST /api/establishments` — create one. The owning account is taken from
+    the verified token, never the request body.
+  - `GET /api/establishments` — the caller's own establishments.
+
+This is the first module stored in Postgres rather than in memory
+(`apps/api/src/store/establishmentStore.ts`). It queries as the calling user by
+forwarding their access token (`store/supabaseClient.ts`) instead of using the
+service role key, so the Row-Level Security policies in `supabase/migrations/`
+stay in force behind the API and a missed filter is a failed query rather than
+a leak. It needs `SUPABASE_URL` and `SUPABASE_ANON_KEY` in `apps/api/.env`;
+without them the routes answer `503 DATABASE_NOT_CONFIGURED`.
+
 ### Appliance survey
 
 Records what appliances an account uses. This is the input for the

@@ -1,26 +1,17 @@
 /**
  * Tests for the establishments client.
  *
- * The cases worth pinning are the ones a reader can't check by eye: that
- * account_id comes from the session rather than the caller (RLS rejects any
- * other value), that a blank address becomes null rather than "", and that
- * the snake_case row is mapped onto our camelCase shape.
+ * The module is a thin wrapper over fetch now that validation and ownership
+ * live in the API, so what's worth pinning is the wire contract: the right
+ * paths, an Authorization header on every call, no account id invented on
+ * the client, and the API's `details` array surviving onto ApiError so the
+ * form can list them.
  */
 
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const getUser = vi.fn();
-const single = vi.fn();
-const insertSelect = vi.fn(() => ({ single }));
-const insert = vi.fn(() => ({ select: insertSelect }));
-const order = vi.fn();
-const selectQuery = vi.fn(() => ({ order }));
-const from = vi.fn(() => ({ select: selectQuery, insert }));
-
-vi.mock("./supabase", () => ({
-  supabase: { auth: { getUser }, from },
-  isSupabaseConfigured: true,
-}));
+const authHeaders = vi.fn(async () => ({ Authorization: "Bearer test-token" }));
+vi.mock("./session", () => ({ authHeaders, getAccessToken: async () => "test-token" }));
 
 const {
   createEstablishment,
@@ -29,46 +20,68 @@ const {
   providerLabel,
 } = await import("./establishments");
 
+const fetchMock = vi.fn();
+
+beforeEach(() => {
+  vi.stubGlobal("fetch", fetchMock);
+});
+
+afterEach(() => {
+  vi.clearAllMocks();
+  vi.unstubAllGlobals();
+});
+
+/** Shorthand for a fetch response. */
+function respond(status: number, body: unknown) {
+  return Promise.resolve({
+    ok: status >= 200 && status < 300,
+    status,
+    json: async () => body,
+  });
+}
+
 const draft = {
   name: "Brew Corner Cafe",
-  typeId: "type-uuid-1",
-  providerId: "provider-uuid-1",
+  typeId: "11111111-1111-1111-1111-111111111111",
+  providerId: "22222222-2222-2222-2222-222222222222",
   address: "12 Rizal St, Cebu City",
 };
 
-afterEach(() => vi.clearAllMocks());
-
 describe("listEstablishmentTypes", () => {
-  it("returns the seeded types", async () => {
-    order.mockResolvedValue({ data: [{ id: "t1", name: "Cafe" }], error: null });
+  it("reads the types from the API", async () => {
+    fetchMock.mockReturnValue(respond(200, [{ id: "t1", name: "Cafe" }]));
 
     await expect(listEstablishmentTypes()).resolves.toEqual([{ id: "t1", name: "Cafe" }]);
-    expect(from).toHaveBeenCalledWith("establishment_types");
+    expect(fetchMock.mock.calls[0][0]).toContain("/api/establishments/types");
   });
 
-  it("returns an empty list rather than null when there are no rows", async () => {
-    // A null `data` would otherwise reach the page and break `.map`.
-    order.mockResolvedValue({ data: null, error: null });
+  it("sends the access token", async () => {
+    fetchMock.mockReturnValue(respond(200, []));
+    await listEstablishmentTypes();
 
-    await expect(listEstablishmentTypes()).resolves.toEqual([]);
+    expect(fetchMock.mock.calls[0][1].headers).toMatchObject({
+      Authorization: "Bearer test-token",
+    });
   });
 
-  it("surfaces the database error", async () => {
-    order.mockResolvedValue({ data: null, error: { message: "permission denied" } });
+  it("throws with the API's status when the read fails", async () => {
+    fetchMock.mockReturnValue(respond(503, { message: "The server can't reach the database." }));
 
-    await expect(listEstablishmentTypes()).rejects.toThrow("permission denied");
+    await expect(listEstablishmentTypes()).rejects.toMatchObject({
+      status: 503,
+      message: "The server can't reach the database.",
+    });
   });
 });
 
 describe("listProviders", () => {
-  it("reads the utilities from the database, not a hardcoded list", async () => {
-    order.mockResolvedValue({
-      data: [{ id: "p1", name: "Manila Electric Company", acronym: "Meralco" }],
-      error: null,
-    });
+  it("reads the utilities from the API", async () => {
+    fetchMock.mockReturnValue(
+      respond(200, [{ id: "p1", name: "Manila Electric Company", acronym: "Meralco" }]),
+    );
 
     await expect(listProviders()).resolves.toHaveLength(1);
-    expect(from).toHaveBeenCalledWith("providers");
+    expect(fetchMock.mock.calls[0][0]).toContain("/api/establishments/providers");
   });
 });
 
@@ -87,60 +100,73 @@ describe("providerLabel", () => {
 });
 
 describe("createEstablishment", () => {
-  it("owns the row with the signed-in user and maps the result", async () => {
-    getUser.mockResolvedValue({ data: { user: { id: "user-uuid-1" } }, error: null });
-    single.mockResolvedValue({
-      data: {
-        id: "est-uuid-1",
+  it("posts the survey and returns the saved establishment", async () => {
+    fetchMock.mockReturnValue(
+      respond(201, {
+        id: "est-1",
+        accountId: "user-1",
         name: "Brew Corner Cafe",
-        type_id: "type-uuid-1",
-        provider_id: "provider-uuid-1",
-        address: "12 Rizal St, Cebu City",
-        created_at: "2026-08-22T00:00:00Z",
-      },
-      error: null,
-    });
-
-    await expect(createEstablishment(draft)).resolves.toEqual({
-      id: "est-uuid-1",
-      name: "Brew Corner Cafe",
-      typeId: "type-uuid-1",
-      providerId: "provider-uuid-1",
-      address: "12 Rizal St, Cebu City",
-      createdAt: "2026-08-22T00:00:00Z",
-    });
-    expect(insert).toHaveBeenCalledWith(
-      expect.objectContaining({ account_id: "user-uuid-1" }),
+        typeId: draft.typeId,
+        providerId: draft.providerId,
+        address: draft.address,
+        createdAt: "2026-08-22T00:00:00Z",
+      }),
     );
+
+    await expect(createEstablishment(draft)).resolves.toMatchObject({ id: "est-1" });
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toContain("/api/establishments");
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(init.body)).toEqual({
+      name: "Brew Corner Cafe",
+      typeId: draft.typeId,
+      providerId: draft.providerId,
+      address: "12 Rizal St, Cebu City",
+    });
   });
 
-  it("stores a blank address as null, since the column is nullable", async () => {
-    getUser.mockResolvedValue({ data: { user: { id: "user-uuid-1" } }, error: null });
-    single.mockResolvedValue({ data: { id: "e1", name: "Home", type_id: "t", provider_id: "p", address: null, created_at: "2026-08-22T00:00:00Z" }, error: null });
+  it("does not send an account id — the API takes it from the token", async () => {
+    fetchMock.mockReturnValue(respond(201, {}));
+    await createEstablishment(draft);
 
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).not.toHaveProperty("accountId");
+  });
+
+  it("trims the name and address before sending", async () => {
+    fetchMock.mockReturnValue(respond(201, {}));
     await createEstablishment({ ...draft, name: "  Home  ", address: "   " });
 
-    expect(insert).toHaveBeenCalledWith(
-      expect.objectContaining({ name: "Home", address: null }),
-    );
-  });
-
-  it("refuses to insert when there is no session", async () => {
-    // Without this the insert would go out with account_id undefined and
-    // fail on a not-null violation the user can't act on.
-    getUser.mockResolvedValue({ data: { user: null }, error: null });
-
-    await expect(createEstablishment(draft)).rejects.toMatchObject({ status: 401 });
-    expect(insert).not.toHaveBeenCalled();
-  });
-
-  it("surfaces an RLS or constraint failure", async () => {
-    getUser.mockResolvedValue({ data: { user: { id: "user-uuid-1" } }, error: null });
-    single.mockResolvedValue({
-      data: null,
-      error: { message: 'new row violates row-level security policy' },
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({
+      name: "Home",
+      address: "",
     });
+  });
 
-    await expect(createEstablishment(draft)).rejects.toThrow(/row-level security/);
+  it("surfaces the API's per-field details for the form to list", async () => {
+    fetchMock.mockReturnValue(
+      respond(400, { error: "VALIDATION_FAILED", details: ["name is required"] }),
+    );
+
+    await expect(createEstablishment(draft)).rejects.toMatchObject({
+      status: 400,
+      details: ["name is required"],
+    });
+  });
+
+  it("copes with an error response that isn't JSON", async () => {
+    fetchMock.mockReturnValue(
+      Promise.resolve({
+        ok: false,
+        status: 500,
+        json: async () => {
+          throw new Error("not json");
+        },
+      }),
+    );
+
+    await expect(createEstablishment(draft)).rejects.toThrow(
+      "Failed to save your establishment",
+    );
   });
 });

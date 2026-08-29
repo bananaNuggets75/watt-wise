@@ -57,7 +57,9 @@ export function EstablishmentSetup() {
       .catch((err: unknown) => {
         if (!active) return;
         setErrors([
-          err instanceof ApiError ? err.message : "Couldn't load the options.",
+          err instanceof ApiError
+            ? err.message
+            : "Couldn't load the options. Is the API running on :4000?",
         ]);
       })
       .finally(() => {
@@ -89,9 +91,12 @@ export function EstablishmentSetup() {
       await createEstablishment({ name, typeId, providerId, address });
       navigate(from, { replace: true });
     } catch (err) {
-      setErrors([
-        err instanceof ApiError ? err.message : "Couldn't save your details.",
-      ]);
+      // ApiError carries the API's per-field validation messages.
+      if (err instanceof ApiError) {
+        setErrors(err.details?.length ? err.details : [err.message]);
+      } else {
+        setErrors(["Something went wrong. Is the API running on :4000?"]);
+      }
     } finally {
       setSubmitting(false);
     }

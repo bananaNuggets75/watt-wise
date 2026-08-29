@@ -1,21 +1,17 @@
 /**
- * Establishments client, backed by Supabase directly.
+ * Establishments client.
  *
- * Unlike bills and appliances, establishments don't go through apps/api:
- * the table and its two lookup lists (establishment_types, providers) live
- * in Postgres with RLS policies that already scope writes to the signed-in
- * user, so an extra hop through the Node API would add nothing but latency.
+ * Like bills and appliances, this goes through apps/api rather than talking
+ * to Supabase from the browser: validation, the account_id the row is
+ * written under, and the mapping to the database's snake_case columns are
+ * all backend concerns, and keeping them there means one place to change
+ * when the schema moves.
  *
- * See supabase/migrations/20260814000200_lookup_tables.sql for the seeded
- * option lists and 20260814000300_* for the establishments table.
+ * The routes live in apps/api/src/routes/establishments.ts.
  */
 
-import { ApiError } from "./api";
-import { isSupabaseConfigured, supabase } from "./supabase";
-
-/** Shown when the project hasn't been configured, instead of a network error. */
-const NOT_CONFIGURED =
-  "Supabase isn't configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to apps/web/.env.";
+import { ApiError, apiUrl } from "./api";
+import { authHeaders } from "./session";
 
 /** A kind of place — Household, Cafe, Office. Also drives peer benchmarking. */
 export interface EstablishmentType {
@@ -39,13 +35,14 @@ export interface EstablishmentDraft {
   address: string;
 }
 
-/** An establishment as stored. */
+/** An establishment as returned by the API. */
 export interface Establishment {
   id: string;
+  accountId: string;
   name: string;
   typeId: string;
   providerId: string;
-  address: string | null;
+  address?: string;
   createdAt: string;
 }
 
@@ -57,77 +54,59 @@ export function providerLabel(provider: Provider): string {
   return provider.acronym ? `${provider.acronym} — ${provider.name}` : provider.name;
 }
 
-/** The establishment types on offer, alphabetical. */
-export async function listEstablishmentTypes(): Promise<EstablishmentType[]> {
-  if (!isSupabaseConfigured) throw new ApiError(NOT_CONFIGURED, 500);
+/** GET a path under /api/establishments, throwing ApiError on failure. */
+async function getJson<T>(path: string, whatFailed: string): Promise<T> {
+  const res = await fetch(apiUrl(path), { headers: await authHeaders() });
+  const data = await res.json().catch(() => ({}));
 
-  const { data, error } = await supabase
-    .from("establishment_types")
-    .select("id, name")
-    .order("name");
+  if (!res.ok) {
+    throw new ApiError(data.message ?? data.error ?? whatFailed, res.status, data.details);
+  }
+  return data as T;
+}
 
-  if (error) throw new ApiError(error.message, 400);
-  return data ?? [];
+/** The establishment types on offer. */
+export function listEstablishmentTypes(): Promise<EstablishmentType[]> {
+  return getJson<EstablishmentType[]>(
+    "/api/establishments/types",
+    "Failed to load establishment types",
+  );
 }
 
 /**
- * The electric utilities on offer, alphabetical. The table is seeded with
- * the major ones but stays open to rows added at runtime (OCR reads
- * cooperatives that aren't listed yet), so this reads whatever is there
- * rather than a hardcoded list.
+ * The electric utilities on offer. Served from the database, so a provider
+ * added later (OCR can create ones that aren't seeded) appears here without
+ * a frontend change.
  */
-export async function listProviders(): Promise<Provider[]> {
-  if (!isSupabaseConfigured) throw new ApiError(NOT_CONFIGURED, 500);
-
-  const { data, error } = await supabase
-    .from("providers")
-    .select("id, name, acronym")
-    .order("name");
-
-  if (error) throw new ApiError(error.message, 400);
-  return data ?? [];
+export function listProviders(): Promise<Provider[]> {
+  return getJson<Provider[]>("/api/establishments/providers", "Failed to load providers");
 }
 
 /**
- * Create the establishment for the signed-in user.
- *
- * account_id is set from the current session rather than passed in: RLS
- * would reject any other value anyway, and taking it from a caller invites
- * a bug where the wrong id is sent and the insert fails opaquely.
- *
- * Address is optional in the schema, so a blank one is stored as null
- * instead of an empty string.
+ * Create the signed-in user's establishment. The owning account is taken
+ * from the access token by the API, so it isn't sent here.
  */
 export async function createEstablishment(
   draft: EstablishmentDraft,
 ): Promise<Establishment> {
-  if (!isSupabaseConfigured) throw new ApiError(NOT_CONFIGURED, 500);
-
-  const { data: userData, error: userError } = await supabase.auth.getUser();
-  if (userError || !userData.user) {
-    throw new ApiError("You need to be signed in to do that.", 401);
-  }
-
-  const { data, error } = await supabase
-    .from("establishments")
-    .insert({
-      account_id: userData.user.id,
+  const res = await fetch(apiUrl("/api/establishments"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+    body: JSON.stringify({
       name: draft.name.trim(),
-      type_id: draft.typeId,
-      provider_id: draft.providerId,
-      address: draft.address.trim() || null,
-    })
-    .select("id, name, type_id, provider_id, address, created_at")
-    .single();
+      typeId: draft.typeId,
+      providerId: draft.providerId,
+      address: draft.address.trim(),
+    }),
+  });
+  const data = await res.json().catch(() => ({}));
 
-  if (error) throw new ApiError(error.message, 400);
-
-  return {
-    id: data.id,
-    name: data.name,
-    typeId: data.type_id,
-    providerId: data.provider_id,
-    address: data.address,
-    createdAt: data.created_at,
-  };
+  if (!res.ok) {
+    throw new ApiError(
+      data.message ?? data.error ?? "Failed to save your establishment",
+      res.status,
+      data.details,
+    );
+  }
+  return data as Establishment;
 }
