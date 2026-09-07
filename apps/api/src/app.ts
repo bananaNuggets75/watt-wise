@@ -12,6 +12,7 @@ import { MulterError } from "multer";
 import { billsRouter } from "./routes/bills.js";
 import { recommendationsRouter } from "./routes/recommendations.js";
 import { appliancesRouter } from "./routes/appliances.js";
+import { establishmentsRouter } from "./routes/establishments.js";
 
 export function createApp() {
   const app = express();
@@ -32,6 +33,9 @@ export function createApp() {
 
   // Appliance survey.
   app.use("/api/appliances", appliancesRouter);
+
+  // Establishment survey (onboarding, straight after registration).
+  app.use("/api/establishments", establishmentsRouter);
 
   /**
    * Central error handler. Must be registered after the routes. It translates

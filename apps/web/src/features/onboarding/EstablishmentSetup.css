@@ -1,0 +1,96 @@
+/* Establishment setup screen.
+   Deliberately matches the register page (Auth.css) so the step after
+   sign-up doesn't look like a different app. */
+
+.establishment-setup {
+  max-width: 360px;
+  margin: 0 auto;
+  padding: 40px 20px;
+  color: #1a1a1a;
+  text-align: left;
+}
+
+.establishment-setup__title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0 0 4px;
+}
+
+.establishment-setup__subtitle {
+  color: #6b7280;
+  font-size: 0.9rem;
+  margin: 0 0 24px;
+}
+
+.establishment-setup__form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.establishment-setup__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.establishment-setup__optional {
+  font-weight: 400;
+  color: #9ca3af;
+}
+
+.establishment-setup__field input,
+.establishment-setup__field select {
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-weight: 400;
+  color: #1a1a1a;
+  background: #fff;
+}
+
+.establishment-setup__field select:disabled {
+  color: #9ca3af;
+  background: #f9fafb;
+}
+
+.establishment-setup__field input:focus,
+.establishment-setup__field select:focus {
+  outline: none;
+  border-color: #7cc07c;
+  box-shadow: 0 0 0 3px rgba(124, 192, 124, 0.25);
+}
+
+.establishment-setup__hint {
+  font-weight: 400;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.establishment-setup__errors {
+  margin: 0;
+  padding-left: 18px;
+  color: #b91c1c;
+  font-size: 0.85rem;
+}
+
+.establishment-setup__submit {
+  margin-top: 6px;
+  padding: 13px;
+  border: none;
+  border-radius: 12px;
+  background: #111;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.establishment-setup__submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
