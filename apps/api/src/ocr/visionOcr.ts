@@ -49,7 +49,7 @@ const MAX_MODELS = 3;
 const PROMPT = `You are reading a Philippine electricity bill from an image.
 Extract these fields and reply with ONLY a JSON object (no markdown, no prose):
 {"accountName": string|null, "provider": string|null, "kwhUsed": number|null, "amount": number|null, "periodStart": string|null, "periodEnd": string|null}
-- accountName: the account holder / customer name printed on the bill (e.g. "Buskowitz, Henry").
+- accountName: the account holder / customer name printed on the bill (e.g. "Dela Cruz, Juan").
 - provider: the electric utility company name (e.g. "Meralco").
 - kwhUsed: total electricity consumed in kWh for this bill, as a number (no units).
 - amount: total amount due, as a number (no currency symbol, no thousands separators).

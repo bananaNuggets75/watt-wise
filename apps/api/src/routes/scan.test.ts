@@ -96,7 +96,7 @@ describe("a successful scan", () => {
     mockOpenRouter({
       ok: true,
       content: JSON.stringify({
-        accountName: "Buskowitz, Henry",
+        accountName: "Dela Cruz, Juan",
         provider: "Meralco",
         kwhUsed: 136,
         amount: 1490.07,
@@ -110,7 +110,7 @@ describe("a successful scan", () => {
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({
       engine: "openrouter-vision",
-      accountName: "Buskowitz, Henry",
+      accountName: "Dela Cruz, Juan",
       kwhUsed: 136,
       amount: 1490.07,
     });

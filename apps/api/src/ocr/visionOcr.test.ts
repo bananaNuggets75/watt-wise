@@ -15,7 +15,7 @@ import { parseVisionReply } from "./visionOcr.js";
 
 describe("a well-formed reply", () => {
   const raw = JSON.stringify({
-    accountName: "Buskowitz, Henry",
+    accountName: "Dela Cruz, Juan",
     provider: "Meralco",
     kwhUsed: 136,
     amount: 1490.07,
@@ -25,7 +25,7 @@ describe("a well-formed reply", () => {
 
   it("extracts every field", () => {
     expect(parseVisionReply(raw)).toMatchObject({
-      accountName: "Buskowitz, Henry",
+      accountName: "Dela Cruz, Juan",
       provider: "Meralco",
       kwhUsed: 136,
       amount: 1490.07,
