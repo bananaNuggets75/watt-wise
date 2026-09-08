@@ -17,8 +17,33 @@
 import type { OcrResult } from "../types/ocr.js";
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-// OCR-specialised free vision model; override with OCR_MODEL if desired.
-const DEFAULT_MODEL = "nvidia/nemotron-nano-12b-v2-vl:free";
+
+/**
+ * Models to try, in order. OpenRouter moves to the next one when a model is
+ * delisted, rate-limited, or down, so scanning survives any single one going
+ * away — which it does: the previous default
+ * (nvidia/nemotron-nano-12b-v2-vl:free) was removed from the catalogue and
+ * every scan started failing with "No endpoints found". Free tiers are
+ * throttled independently too, so a second name is a real fallback, not
+ * ceremony.
+ *
+ * OCR_MODEL overrides the first entry; the rest still act as backups. All
+ * free, so the list costs nothing.
+ */
+const DEFAULT_MODELS = [
+  // Named models only, each verified reading a bill correctly. OpenRouter's
+  // "openrouter/free" router was tried here and rejected: it optimises for
+  // available capacity, not suitability, and routed a bill image to a
+  // content-safety classifier that replied "User Safety: safe" — a success
+  // as far as the API is concerned, and indistinguishable downstream from a
+  // bill nobody could read.
+  "dots-studio/dots-3-note-preview:free",
+  "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+  "google/gemma-4-31b-it:free",
+];
+
+/** OpenRouter rejects a `models` array longer than this with a 400. */
+const MAX_MODELS = 3;
 
 /** Instruction to the model. Kept strict so the reply is easy to parse. */
 const PROMPT = `You are reading a Philippine electricity bill from an image.
@@ -98,7 +123,15 @@ export async function scanBillWithVision(
   if (!apiKey) {
     throw new Error("OPENROUTER_API_KEY is not set");
   }
-  const model = process.env.OCR_MODEL ?? DEFAULT_MODEL;
+  // A configured model leads; the defaults fill the remaining slots. Trimmed
+  // to MAX_MODELS because a longer list is rejected outright, which would
+  // fail every scan rather than just losing a fallback.
+  const configured = process.env.OCR_MODEL;
+  const models = (
+    configured
+      ? [configured, ...DEFAULT_MODELS.filter((m) => m !== configured)]
+      : DEFAULT_MODELS
+  ).slice(0, MAX_MODELS);
 
   // Encode the image as a data URL so it rides inside the JSON request.
   const dataUrl = `data:${mimeType};base64,${imageBuffer.toString("base64")}`;
@@ -111,7 +144,9 @@ export async function scanBillWithVision(
       "X-Title": "WattWise",
     },
     body: JSON.stringify({
-      model,
+      // An array rather than a single `model`: OpenRouter walks it in order
+      // and only errors once every entry has failed.
+      models,
       messages: [
         {
           role: "user",
@@ -125,13 +160,34 @@ export async function scanBillWithVision(
   });
 
   if (!res.ok) {
+    // Log the upstream reason: the caller only ever sees "could not read the
+    // image", so without this a delisted model, a rate limit and an outage
+    // are indistinguishable from the outside — which is exactly what made
+    // the last breakage take a live API call to identify.
     const detail = await res.text().catch(() => "");
-    throw new Error(`OpenRouter OCR failed (${res.status}): ${detail.slice(0, 200)}`);
+    console.error(
+      `[ocr] OpenRouter rejected the request (HTTP ${res.status}) for models ` +
+        `${models.join(", ")}: ${detail.slice(0, 300)}`,
+    );
+    throw new Error(`OpenRouter OCR failed (${res.status})`);
   }
 
   const payload = (await res.json()) as {
     choices?: Array<{ message?: { content?: string } }>;
+    model?: string;
+    error?: { code?: number | string; message?: string };
   };
+
+  // OpenRouter reports some failures with HTTP 200 and an error object, which
+  // would otherwise read as "the model found nothing" rather than a fault.
+  if (payload.error) {
+    console.error(
+      `[ocr] OpenRouter returned an error for models ${models.join(", ")}: ` +
+        `${payload.error.code} ${payload.error.message}`,
+    );
+    throw new Error(`OpenRouter OCR failed: ${payload.error.message ?? "unknown error"}`);
+  }
+
   const rawText = payload.choices?.[0]?.message?.content ?? "";
   return parseVisionReply(rawText);
 }
