@@ -47,6 +47,54 @@
   border-color: #7cc07c;
 }
 
+/* Scanning takes tens of seconds, so the whole dropzone shows it — a small
+   label change is easy to miss while waiting. */
+.dropzone--scanning,
+.dropzone--scanning:hover {
+  background: #e4f1e4;
+  border-style: solid;
+  border-color: #7cc07c;
+  cursor: progress;
+  /* The button is disabled while scanning; keep it at full strength anyway,
+     since dimming would read as "nothing is happening". */
+  opacity: 1;
+  animation: dropzone-breathe 1.8s ease-in-out infinite;
+}
+
+.dropzone__spinner {
+  width: 30px;
+  height: 30px;
+  color: #2f5233;
+  animation: dropzone-spin 0.9s linear infinite;
+}
+
+@keyframes dropzone-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* A slow shift in the border colour, so movement is visible even at a glance
+   away from the spinner. */
+@keyframes dropzone-breathe {
+  0%,
+  100% {
+    border-color: #9bcf9b;
+  }
+  50% {
+    border-color: #4e9e4e;
+  }
+}
+
+/* Motion is decoration here: the label and the status message already say
+   what is happening, so both animations can simply stop. */
+@media (prefers-reduced-motion: reduce) {
+  .dropzone--scanning,
+  .dropzone__spinner {
+    animation: none;
+  }
+}
+
 .dropzone__icon {
   width: 28px;
   height: 28px;

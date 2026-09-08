@@ -138,22 +138,51 @@ export function BillUpload() {
       {/* File dropzone — an image gets OCR'd to pre-fill the form. */}
       <button
         type="button"
-        className="dropzone"
+        className={scanning ? "dropzone dropzone--scanning" : "dropzone"}
         onClick={() => fileInputRef.current?.click()}
         disabled={scanning}
+        // Reading a bill can take tens of seconds, so the wait is announced
+        // rather than left to the spinner, which a screen reader can't see.
+        aria-busy={scanning}
       >
-        {/* Upload icon (inline SVG, not emoji, per project convention). */}
-        <svg className="dropzone__icon" viewBox="0 0 24 24" aria-hidden="true">
-          <path
-            fill="currentColor"
-            d="M11 16V7.85l-2.6 2.6L7 9l5-5 5 5-1.4 1.45-2.6-2.6V16h-2Zm-6 4a2 2 0 0 1-2-2v-3h2v3h14v-3h2v3a2 2 0 0 1-2 2H5Z"
-          />
-        </svg>
+        {scanning ? (
+          /* Spinner: a ring with a gap, rotated by CSS. */
+          <svg className="dropzone__spinner" viewBox="0 0 24 24" aria-hidden="true">
+            <circle
+              cx="12"
+              cy="12"
+              r="9"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeDasharray="42 14"
+            />
+          </svg>
+        ) : (
+          /* Upload icon (inline SVG, not emoji, per project convention). */
+          <svg className="dropzone__icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              fill="currentColor"
+              d="M11 16V7.85l-2.6 2.6L7 9l5-5 5 5-1.4 1.45-2.6-2.6V16h-2Zm-6 4a2 2 0 0 1-2-2v-3h2v3h14v-3h2v3a2 2 0 0 1-2 2H5Z"
+            />
+          </svg>
+        )}
         <span className="dropzone__label">
-          {scanning ? "Scanning…" : file ? file.name : "Upload from File"}
+          {scanning ? "Reading your bill…" : file ? file.name : "Upload from File"}
         </span>
-        <span className="dropzone__hint">JPG, PNG, or PDF · max 10 MB</span>
+        <span className="dropzone__hint">
+          {scanning
+            ? "This can take up to a minute. You can type the details in below instead."
+            : "JPG, PNG, or PDF · max 10 MB"}
+        </span>
       </button>
+
+      {/* Announced to screen readers, which never see the spinner. Kept
+          outside the disabled button so it is still read out. */}
+      <span role="status" aria-live="polite" className="visually-hidden">
+        {scanning ? "Reading your bill. This can take up to a minute." : ""}
+      </span>
       <input
         ref={fileInputRef}
         type="file"
