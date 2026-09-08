@@ -17,6 +17,7 @@ import {
   scanBill,
   type BillFormData,
 } from "../../lib/api";
+import { formPatchFrom, scanNoteFor } from "./scanSummary";
 import "./BillUpload.css";
 
 // Client-side mirror of the server's file rules, so we can reject bad
@@ -61,39 +62,10 @@ export function BillUpload() {
     setScanNote(null);
     try {
       const scan = await scanBill(image);
-      const found: string[] = [];
-      setForm((prev) => {
-        const next = { ...prev };
-        if (scan.accountName) {
-          next.accountName = scan.accountName;
-          found.push("account name");
-        }
-        if (scan.provider) {
-          next.provider = scan.provider;
-          found.push("provider");
-        }
-        if (scan.kwhUsed !== undefined) {
-          next.kwhUsed = String(scan.kwhUsed);
-          found.push("kWh");
-        }
-        if (scan.amount !== undefined) {
-          next.amount = String(scan.amount);
-          found.push("amount");
-        }
-        if (scan.periodStart) {
-          next.periodStart = scan.periodStart;
-          found.push("period");
-        }
-        if (scan.periodEnd) {
-          next.periodEnd = scan.periodEnd;
-        }
-        return next;
-      });
-      setScanNote(
-        found.length > 0
-          ? `Auto-filled ${found.join(", ")} from the scan — please double-check.`
-          : "Couldn't read the numbers from that image — enter them manually below.",
-      );
+      // Both derived from the scan before any state is touched: building the
+      // summary inside the updater meant reading it before React had run it.
+      setForm((prev) => ({ ...prev, ...formPatchFrom(scan) }));
+      setScanNote(scanNoteFor(scan));
     } catch {
       setScanNote("Scan failed — enter the numbers manually below.");
     } finally {
