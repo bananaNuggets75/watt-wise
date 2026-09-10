@@ -179,6 +179,62 @@ select account_id from public.establishments where id = '44444444-4444-4444-4444
 SQL
 
 echo
+echo "What the API does"
+# These are the operations the API performs on behalf of a signed-in user.
+# Until now nothing had ever written to bills or appliances as `authenticated`,
+# only as the owner of the database — which proves nothing about either the
+# policies or the table privileges.
+expect_eq "a user can record a bill against their own establishment" "1" <<'SQL'
+set role authenticated;
+set request.jwt.claim.sub = '11111111-1111-1111-1111-111111111111';
+insert into public.bills (establishment_id, kwh_used, amount, period_start, period_end)
+values ('22222222-2222-2222-2222-222222222222', 280, 1600, '2026-07-01', '2026-07-31');
+select count(*) from public.bills where period_start = '2026-07-01';
+SQL
+
+expect_eq "a user can save an appliance survey for their own establishment" "2" <<'SQL'
+set role authenticated;
+set request.jwt.claim.sub = '11111111-1111-1111-1111-111111111111';
+insert into public.appliances (establishment_id, kind_id, subtype_id, quantity)
+select '22222222-2222-2222-2222-222222222222', k.id, s.id, 2
+from appliance_kinds k join appliance_subtypes s on s.kind_id = k.id
+where k.appliance_name = 'Air Conditioner' and s.subtype_name = 'Inverter';
+-- A kind with no variants stores a null subtype rather than a placeholder.
+insert into public.appliances (establishment_id, kind_id, quantity)
+select '22222222-2222-2222-2222-222222222222', id, 3
+from appliance_kinds where appliance_name = 'Electric Fan';
+select count(*) from public.appliances;
+SQL
+
+expect_eq "appliances are visible only to the account that owns them" "0" <<'SQL'
+set role authenticated;
+set request.jwt.claim.sub = '33333333-3333-3333-3333-333333333333';
+select count(*) from public.appliances;
+SQL
+
+# The store relies on this: a delete that matched nothing and a delete that
+# was refused look identical, so it asks for the deleted rows back and
+# reports "not found" when none come. If RLS ever raised an error here
+# instead of quietly matching nothing, that check would be the wrong shape.
+expect_eq "deleting another user's appliance removes nothing, silently" "0" <<'SQL'
+set role authenticated;
+set request.jwt.claim.sub = '33333333-3333-3333-3333-333333333333';
+with removed as (delete from public.appliances returning id)
+select count(*) from removed;
+SQL
+
+expect_eq "a user can delete their own appliance" "1" <<'SQL'
+set role authenticated;
+set request.jwt.claim.sub = '11111111-1111-1111-1111-111111111111';
+with removed as (
+  delete from public.appliances
+  where quantity = 3
+  returning id
+)
+select count(*) from removed;
+SQL
+
+echo
 if (( FAILURES > 0 )); then
   echo "${FAILURES} check(s) failed."
   exit 1
