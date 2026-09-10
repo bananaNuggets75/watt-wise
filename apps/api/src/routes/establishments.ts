@@ -73,25 +73,25 @@ function parseEstablishment(
 }
 
 /** GET /api/establishments/types — the seeded establishment types. */
-establishmentsRouter.get("/types", async (req, res) => {
+establishmentsRouter.get("/types", async (req, res, next) => {
   try {
     res.json(await listEstablishmentTypes(req.accessToken!));
   } catch (err) {
-    respondToStoreError(err, res, ERRORS);
+    respondToStoreError(err, res, next, ERRORS);
   }
 });
 
 /** GET /api/establishments/providers — the electric utilities on offer. */
-establishmentsRouter.get("/providers", async (req, res) => {
+establishmentsRouter.get("/providers", async (req, res, next) => {
   try {
     res.json(await listProviders(req.accessToken!));
   } catch (err) {
-    respondToStoreError(err, res, ERRORS);
+    respondToStoreError(err, res, next, ERRORS);
   }
 });
 
 /** POST /api/establishments — create the signed-in user's establishment. */
-establishmentsRouter.post("/", async (req, res) => {
+establishmentsRouter.post("/", async (req, res, next) => {
   const { input, errors } = parseEstablishment(req.body ?? {});
   if (!input) {
     return res.status(400).json({ error: "VALIDATION_FAILED", details: errors });
@@ -102,15 +102,15 @@ establishmentsRouter.post("/", async (req, res) => {
     const saved = await createEstablishment(req.accessToken!, req.user!.id, input);
     return res.status(201).json(saved);
   } catch (err) {
-    return respondToStoreError(err, res, ERRORS);
+    return respondToStoreError(err, res, next, ERRORS);
   }
 });
 
 /** GET /api/establishments — the user's own establishments, newest first. */
-establishmentsRouter.get("/", async (req, res) => {
+establishmentsRouter.get("/", async (req, res, next) => {
   try {
     res.json(await listEstablishments(req.accessToken!));
   } catch (err) {
-    respondToStoreError(err, res, ERRORS);
+    respondToStoreError(err, res, next, ERRORS);
   }
 });

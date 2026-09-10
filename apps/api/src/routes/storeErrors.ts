@@ -17,7 +17,7 @@
  * mapping from cause to status is what is shared.
  */
 
-import type { Response } from "express";
+import type { NextFunction, Response } from "express";
 import { DatabaseError, SupabaseNotConfiguredError } from "../store/supabaseClient.js";
 
 export interface StoreErrorMessages {
@@ -30,38 +30,43 @@ export interface StoreErrorMessages {
 }
 
 /**
- * Respond to a store failure. Rethrows anything that isn't a store error, so
- * a genuine bug still reaches the central error handler instead of being
- * flattened into a tidy 502.
+ * Respond to a store failure.
+ *
+ * Anything that isn't a store error is a genuine bug, and is handed to the
+ * central error handler via `next` rather than rethrown: every caller here
+ * is an async handler, where a throw becomes an unhandled rejection that
+ * Express never sees — so the client would wait out its timeout instead of
+ * getting the 500 it deserves.
  */
 export function respondToStoreError(
   err: unknown,
   res: Response,
+  next: NextFunction,
   messages: StoreErrorMessages,
-): Response {
+): void {
   // Reached when the settings vanish between the guard and the query — rare,
   // but it would otherwise surface as an opaque 500.
   if (err instanceof SupabaseNotConfiguredError) {
-    return res.status(503).json({
+    res.status(503).json({
       error: "DATABASE_NOT_CONFIGURED",
       message: "The server can't reach the database.",
     });
+    return;
   }
 
   if (err instanceof DatabaseError) {
     if (/foreign key|violates foreign key constraint/i.test(err.message)) {
-      return res
-        .status(400)
-        .json({ error: "VALIDATION_FAILED", details: [messages.staleReference] });
+      res.status(400).json({ error: "VALIDATION_FAILED", details: [messages.staleReference] });
+      return;
     }
     if (/row-level security/i.test(err.message)) {
-      return res.status(403).json({ error: "NOT_PERMITTED", message: messages.notPermitted });
+      res.status(403).json({ error: "NOT_PERMITTED", message: messages.notPermitted });
+      return;
     }
     console.error(`[${messages.source}] database error:`, err.message);
-    return res
-      .status(502)
-      .json({ error: "DATABASE_ERROR", message: "Couldn't reach the database." });
+    res.status(502).json({ error: "DATABASE_ERROR", message: "Couldn't reach the database." });
+    return;
   }
 
-  throw err;
+  next(err);
 }
