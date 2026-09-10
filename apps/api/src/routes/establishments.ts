@@ -1,10 +1,12 @@
 /**
- * Routes for the establishment survey shown straight after registration.
+ * Routes for the establishment survey shown straight after registration,
+ * and the mounting point for everything an establishment owns.
  *
  *   GET  /api/establishments/types      The establishment types to choose from.
  *   GET  /api/establishments/providers  The electric utilities to choose from.
  *   POST /api/establishments            Create the user's establishment.
  *   GET  /api/establishments            List the user's establishments.
+ *   .../:establishmentId/bills          Bills recorded for one establishment.
  *
  * All routes require authentication. The two lookup lists are shared
  * reference data rather than user data, but they still sit behind auth
@@ -15,6 +17,8 @@ import { Router } from "express";
 import { isUuid } from "../lib/uuid.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 import { requireDatabase } from "../middleware/requireDatabase.js";
+import { requireEstablishment } from "../middleware/requireEstablishment.js";
+import { billsRouter } from "./bills.js";
 import {
   createEstablishment,
   listEstablishments,
@@ -28,6 +32,14 @@ export const establishmentsRouter = Router();
 
 establishmentsRouter.use(requireAuth);
 establishmentsRouter.use(requireDatabase);
+
+/**
+ * Everything an establishment owns hangs off it in the URL, matching how it
+ * hangs off it in the schema. requireEstablishment resolves the id once, so
+ * the sub-routers can take ownership as given — and auth and the database
+ * guard above already apply to them, since they run on this router first.
+ */
+establishmentsRouter.use("/:establishmentId/bills", requireEstablishment, billsRouter);
 
 /** How a database failure reads to someone filling in the survey. */
 const ERRORS: StoreErrorMessages = {

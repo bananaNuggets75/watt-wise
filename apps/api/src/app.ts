@@ -9,7 +9,7 @@
 import express, { type NextFunction, type Request, type Response } from "express";
 import cors from "cors";
 import { MulterError } from "multer";
-import { billsRouter } from "./routes/bills.js";
+import { billScanRouter } from "./routes/billScan.js";
 import { recommendationsRouter } from "./routes/recommendations.js";
 import { appliancesRouter } from "./routes/appliances.js";
 import { establishmentsRouter } from "./routes/establishments.js";
@@ -25,16 +25,19 @@ export function createApp() {
     res.json({ status: "ok", service: "wattwise-api", time: new Date().toISOString() });
   });
 
-  // Utility bill upload / input module.
-  app.use("/api/bills", billsRouter);
+  // Bill scanning. Stores nothing, so it sits outside the establishment
+  // tree — the user shouldn't have to say where a bill belongs before
+  // finding out what it says.
+  app.use("/api/bills", billScanRouter);
 
   // AI recommendation engine (v1).
   app.use("/api/recommendations", recommendationsRouter);
 
-  // Appliance survey.
+  // Appliance lookup lists — shared reference data, not an establishment's.
   app.use("/api/appliances", appliancesRouter);
 
-  // Establishment survey (onboarding, straight after registration).
+  // Establishment survey, and everything an establishment owns: its bills
+  // and its appliances are mounted underneath it in routes/establishments.ts.
   app.use("/api/establishments", establishmentsRouter);
 
   /**
