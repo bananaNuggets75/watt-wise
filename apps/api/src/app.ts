@@ -11,7 +11,7 @@ import cors from "cors";
 import { MulterError } from "multer";
 import { billScanRouter } from "./routes/billScan.js";
 import { recommendationsRouter } from "./routes/recommendations.js";
-import { appliancesRouter } from "./routes/appliances.js";
+import { applianceLookupsRouter } from "./routes/applianceLookups.js";
 import { establishmentsRouter } from "./routes/establishments.js";
 
 export function createApp() {
@@ -33,8 +33,9 @@ export function createApp() {
   // AI recommendation engine (v1).
   app.use("/api/recommendations", recommendationsRouter);
 
-  // Appliance lookup lists — shared reference data, not an establishment's.
-  app.use("/api/appliances", appliancesRouter);
+  // The lists the appliance survey is built from — shared reference data,
+  // needed before an establishment has been chosen.
+  app.use("/api/appliances", applianceLookupsRouter);
 
   // Establishment survey, and everything an establishment owns: its bills
   // and its appliances are mounted underneath it in routes/establishments.ts.

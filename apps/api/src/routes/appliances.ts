@@ -1,40 +1,45 @@
 /**
- * Routes for the appliance survey.
+ * Routes for one establishment's appliance survey.
  *
- *   POST   /api/appliances      Save survey entries. Accepts one appliance or
- *                               an array (the form adds several, then submits).
- *   GET    /api/appliances      List the user's appliances; ?accountId= filters.
- *   DELETE /api/appliances/:id  Remove one of the user's entries.
+ *   POST   /api/establishments/:establishmentId/appliances      Save the survey.
+ *   GET    /api/establishments/:establishmentId/appliances      List them.
+ *   DELETE /api/establishments/:establishmentId/appliances/:id  Remove one.
  *
- * All routes require authentication and are scoped to req.user.
+ * Mounted as a sub-router of the establishments router, so authentication,
+ * the database guard and the ownership check have all run before anything
+ * here does. `mergeParams` is what makes :establishmentId visible.
+ *
+ * The lists the survey is built from live in applianceLookups.ts — they are
+ * shared reference data, needed before an establishment is chosen.
  */
 
 import { Router } from "express";
+import { isUuid } from "../lib/uuid.js";
 import {
-  createAppliance,
+  createAppliances,
   deleteAppliance,
   listAppliances,
 } from "../store/applianceStore.js";
-import { requireAuth } from "../middleware/requireAuth.js";
+import { respondToStoreError, type StoreErrorMessages } from "./storeErrors.js";
 import type { ApplianceSurveyInput } from "../types/appliance.js";
 
-export const appliancesRouter = Router();
-
-// Survey entries are per-user data, so every route here requires a session.
-appliancesRouter.use(requireAuth);
+export const appliancesRouter = Router({ mergeParams: true });
 
 /**
- * Placeholder account used when the client doesn't supply one. Auth and the
- * account picker don't exist yet, so survey entries land here and can be
- * reassigned later — the same approach as the placeholder user_id in
- * supabase/schema.sql.
+ * How a database failure reads to someone filling in the survey. A foreign
+ * key that doesn't resolve covers two cases here: a stale option list, and
+ * a subtype paired with the wrong kind — the appliances_subtype_matches_kind
+ * constraint reports that as a foreign-key violation too.
  */
-const UNASSIGNED_ACCOUNT_ID = "00000000-0000-0000-0000-000000000000";
+const ERRORS: StoreErrorMessages = {
+  source: "appliances",
+  staleReference: "that appliance kind or variant no longer exists, or they don't go together",
+  notPermitted: "You can't save appliances for another account's establishment.",
+};
 
 /**
- * Validate one appliance from the request body. Returns the parsed input, or
- * errors prefixed with the row's position so the client can point at the
- * offending card in the survey.
+ * Validate one appliance from the request body. Errors are prefixed with the
+ * row's position so the client can point at the offending card in the survey.
  */
 function parseAppliance(
   body: Record<string, unknown>,
@@ -43,8 +48,16 @@ function parseAppliance(
   const errors: string[] = [];
   const at = `appliance ${index + 1}:`;
 
-  const type = String(body.type ?? "").trim();
-  if (!type) errors.push(`${at} type is required`);
+  const kindId = String(body.kindId ?? "").trim();
+  if (!kindId) errors.push(`${at} kind is required`);
+  else if (!isUuid(kindId)) errors.push(`${at} kind is not a valid selection`);
+
+  // Optional: absent for a kind with no variants, or when the user skipped
+  // the detail. Blank and absent mean the same thing.
+  const subtypeId = String(body.subtypeId ?? "").trim();
+  if (subtypeId && !isUuid(subtypeId)) {
+    errors.push(`${at} variant is not a valid selection`);
+  }
 
   // Default to 1 — the survey's counter starts there.
   const count = body.count === undefined ? 1 : Number(body.count);
@@ -61,33 +74,27 @@ function parseAppliance(
     }
   }
 
-  const isInverter =
-    typeof body.isInverter === "boolean" ? body.isInverter : undefined;
-
   if (errors.length > 0) return { errors };
 
   return {
-    input: {
-      accountId: String(body.accountId ?? "").trim() || UNASSIGNED_ACCOUNT_ID,
-      type,
-      count,
-      isInverter,
-      ageYears,
-    },
+    input: { kindId, subtypeId: subtypeId || undefined, count, ageYears },
     errors: [],
   };
 }
 
-/** POST /api/appliances — save one appliance or a whole survey. */
-appliancesRouter.post("/", (req, res) => {
-  // Accept either a single object or an array so the survey can submit in one
-  // request; normalise to an array either way.
+/** POST — save one appliance or a whole survey against this establishment. */
+appliancesRouter.post("/", async (req, res, next) => {
+  // Accept either a single object or an array so the survey can submit in
+  // one request; normalise to an array either way.
   const payload = Array.isArray(req.body) ? req.body : [req.body ?? {}];
   if (payload.length === 0) {
-    return res.status(400).json({ error: "VALIDATION_FAILED", details: ["no appliances submitted"] });
+    return res
+      .status(400)
+      .json({ error: "VALIDATION_FAILED", details: ["no appliances submitted"] });
   }
 
-  // Validate everything first so a bad row doesn't leave a half-saved survey.
+  // Validate everything first: a bad row must not leave a half-saved survey
+  // that tells the engine the user owns fewer appliances than they said.
   const parsed: ApplianceSurveyInput[] = [];
   const errors: string[] = [];
   payload.forEach((row, index) => {
@@ -100,21 +107,39 @@ appliancesRouter.post("/", (req, res) => {
     return res.status(400).json({ error: "VALIDATION_FAILED", details: errors });
   }
 
-  const saved = parsed.map((input) => createAppliance(req.user!.id, input));
-  return res.status(201).json(saved);
+  try {
+    const saved = await createAppliances(req.accessToken!, req.establishment!.id, parsed);
+    return res.status(201).json(saved);
+  } catch (err) {
+    return respondToStoreError(err, res, next, ERRORS);
+  }
 });
 
-/** GET /api/appliances — list all, or just one account's with ?accountId=. */
-appliancesRouter.get("/", (req, res) => {
-  const accountId =
-    typeof req.query.accountId === "string" ? req.query.accountId : undefined;
-  res.json(listAppliances(req.user!.id, accountId));
+/** GET — this establishment's appliances, newest first. */
+appliancesRouter.get("/", async (req, res, next) => {
+  try {
+    res.json(await listAppliances(req.accessToken!, req.establishment!.id));
+  } catch (err) {
+    respondToStoreError(err, res, next, ERRORS);
+  }
 });
 
-/** DELETE /api/appliances/:id — remove one entry, or 404. */
-appliancesRouter.delete("/:id", (req, res) => {
-  if (!deleteAppliance(req.user!.id, req.params.id)) {
+/** DELETE /:id — remove one of this establishment's appliances, or 404. */
+appliancesRouter.delete("/:id", async (req, res, next) => {
+  // A malformed id would make Postgres raise rather than match no rows.
+  if (!isUuid(req.params.id)) {
     return res.status(404).json({ error: "APPLIANCE_NOT_FOUND" });
   }
-  return res.status(204).end();
+
+  try {
+    const removed = await deleteAppliance(
+      req.accessToken!,
+      req.establishment!.id,
+      req.params.id,
+    );
+    if (!removed) return res.status(404).json({ error: "APPLIANCE_NOT_FOUND" });
+    return res.status(204).end();
+  } catch (err) {
+    return respondToStoreError(err, res, next, ERRORS);
+  }
 });

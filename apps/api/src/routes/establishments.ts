@@ -7,6 +7,7 @@
  *   POST /api/establishments            Create the user's establishment.
  *   GET  /api/establishments            List the user's establishments.
  *   .../:establishmentId/bills          Bills recorded for one establishment.
+ *   .../:establishmentId/appliances     The establishment's appliance survey.
  *
  * All routes require authentication. The two lookup lists are shared
  * reference data rather than user data, but they still sit behind auth
@@ -18,6 +19,7 @@ import { isUuid } from "../lib/uuid.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 import { requireDatabase } from "../middleware/requireDatabase.js";
 import { requireEstablishment } from "../middleware/requireEstablishment.js";
+import { appliancesRouter } from "./appliances.js";
 import { billsRouter } from "./bills.js";
 import {
   createEstablishment,
@@ -40,6 +42,11 @@ establishmentsRouter.use(requireDatabase);
  * guard above already apply to them, since they run on this router first.
  */
 establishmentsRouter.use("/:establishmentId/bills", requireEstablishment, billsRouter);
+establishmentsRouter.use(
+  "/:establishmentId/appliances",
+  requireEstablishment,
+  appliancesRouter,
+);
 
 /** How a database failure reads to someone filling in the survey. */
 const ERRORS: StoreErrorMessages = {
