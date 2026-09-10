@@ -11,21 +11,13 @@
  * chosen shape rather than a service-role client.
  */
 
-import { userClient } from "./supabaseClient.js";
+import { DatabaseError, userClient } from "./supabaseClient.js";
 import type {
   Establishment,
   EstablishmentInput,
   EstablishmentType,
   Provider,
 } from "../types/establishment.js";
-
-/** A database failure, carried up so the route can report it as a 502. */
-export class DatabaseError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "DatabaseError";
-  }
-}
 
 /** The row shape Postgres returns, before mapping to our camelCase type. */
 interface EstablishmentRow {

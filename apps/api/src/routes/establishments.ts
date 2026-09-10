@@ -13,43 +13,27 @@
 
 import { Router } from "express";
 import { requireAuth } from "../middleware/requireAuth.js";
+import { requireDatabase } from "../middleware/requireDatabase.js";
 import {
   createEstablishment,
-  DatabaseError,
   listEstablishments,
   listEstablishmentTypes,
   listProviders,
 } from "../store/establishmentStore.js";
-import {
-  isDatabaseConfigured,
-  SupabaseNotConfiguredError,
-} from "../store/supabaseClient.js";
+import { respondToStoreError, type StoreErrorMessages } from "./storeErrors.js";
 import type { EstablishmentInput } from "../types/establishment.js";
 
 export const establishmentsRouter = Router();
 
 establishmentsRouter.use(requireAuth);
+establishmentsRouter.use(requireDatabase);
 
-/**
- * Fail fast, and distinguish "this deployment can't reach the database"
- * from "your request was wrong" — the same distinction requireAuth draws
- * for SUPABASE_URL, and for the same reason: a misconfiguration reported as
- * a validation error sends people to debug their own input.
- */
-establishmentsRouter.use((_req, res, next) => {
-  if (!isDatabaseConfigured()) {
-    console.error(
-      "[establishments] SUPABASE_URL / SUPABASE_ANON_KEY are not set, so " +
-        "establishments cannot be read or written. Set them in apps/api/.env " +
-        "and restart — dotenv reads the file once at startup.",
-    );
-    return res.status(503).json({
-      error: "DATABASE_NOT_CONFIGURED",
-      message: "The server can't reach the database.",
-    });
-  }
-  return next();
-});
+/** How a database failure reads to someone filling in the survey. */
+const ERRORS: StoreErrorMessages = {
+  source: "establishments",
+  staleReference: "that type or electric utility no longer exists",
+  notPermitted: "You can't save an establishment for another account.",
+};
 
 /** Postgres generates uuid keys, so anything else is a client bug. */
 const UUID_PATTERN =
@@ -88,45 +72,12 @@ function parseEstablishment(
   };
 }
 
-/**
- * Translate a store failure into a response. A bad type_id or provider_id
- * is a foreign-key violation, which is the caller's mistake (a stale option
- * list) rather than a server fault, so it reads as a 400.
- */
-function respondToStoreError(err: unknown, res: import("express").Response) {
-  if (err instanceof SupabaseNotConfiguredError) {
-    return res.status(503).json({
-      error: "DATABASE_NOT_CONFIGURED",
-      message: "The server can't reach the database.",
-    });
-  }
-  if (err instanceof DatabaseError) {
-    if (/foreign key|violates foreign key constraint/i.test(err.message)) {
-      return res.status(400).json({
-        error: "VALIDATION_FAILED",
-        details: ["that type or electric utility no longer exists"],
-      });
-    }
-    if (/row-level security/i.test(err.message)) {
-      return res.status(403).json({
-        error: "NOT_PERMITTED",
-        message: "You can't save an establishment for another account.",
-      });
-    }
-    console.error("[establishments] database error:", err.message);
-    return res
-      .status(502)
-      .json({ error: "DATABASE_ERROR", message: "Couldn't reach the database." });
-  }
-  throw err;
-}
-
 /** GET /api/establishments/types — the seeded establishment types. */
 establishmentsRouter.get("/types", async (req, res) => {
   try {
     res.json(await listEstablishmentTypes(req.accessToken!));
   } catch (err) {
-    respondToStoreError(err, res);
+    respondToStoreError(err, res, ERRORS);
   }
 });
 
@@ -135,7 +86,7 @@ establishmentsRouter.get("/providers", async (req, res) => {
   try {
     res.json(await listProviders(req.accessToken!));
   } catch (err) {
-    respondToStoreError(err, res);
+    respondToStoreError(err, res, ERRORS);
   }
 });
 
@@ -151,7 +102,7 @@ establishmentsRouter.post("/", async (req, res) => {
     const saved = await createEstablishment(req.accessToken!, req.user!.id, input);
     return res.status(201).json(saved);
   } catch (err) {
-    return respondToStoreError(err, res);
+    return respondToStoreError(err, res, ERRORS);
   }
 });
 
@@ -160,6 +111,6 @@ establishmentsRouter.get("/", async (req, res) => {
   try {
     res.json(await listEstablishments(req.accessToken!));
   } catch (err) {
-    respondToStoreError(err, res);
+    respondToStoreError(err, res, ERRORS);
   }
 });

@@ -26,21 +26,16 @@ const listProviders = vi.fn();
 const createEstablishment = vi.fn();
 const listEstablishments = vi.fn();
 
-// DatabaseError has to be the real class, since the route branches on it.
-vi.mock("../store/establishmentStore.js", async () => {
-  const actual = await vi.importActual<typeof import("../store/establishmentStore.js")>(
-    "../store/establishmentStore.js",
-  );
-  return {
-    DatabaseError: actual.DatabaseError,
-    listEstablishmentTypes,
-    listProviders,
-    createEstablishment,
-    listEstablishments,
-  };
-});
+vi.mock("../store/establishmentStore.js", () => ({
+  listEstablishmentTypes,
+  listProviders,
+  createEstablishment,
+  listEstablishments,
+}));
 
-const { DatabaseError } = await import("../store/establishmentStore.js");
+// The real class: the route branches on it with instanceof, so a stand-in
+// would take the wrong path and every failure would read as a 500.
+const { DatabaseError } = await import("../store/supabaseClient.js");
 const { createApp } = await import("../app.js");
 const app = createApp();
 
