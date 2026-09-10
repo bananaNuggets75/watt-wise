@@ -7,7 +7,9 @@
  *
  * Mounted as a sub-router of the establishments router, so authentication,
  * the database guard and the ownership check have all run before anything
- * here does. `mergeParams` is what makes :establishmentId visible.
+ * here does — the handlers read the resolved establishment off the request
+ * rather than the id from the path. `mergeParams` keeps :establishmentId
+ * reachable anyway, so a later handler that wants it isn't surprised.
  *
  * Scanning lives in billScan.ts — it stores nothing, so it needs no
  * establishment.
