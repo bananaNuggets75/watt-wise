@@ -109,6 +109,31 @@ export async function createEstablishment(
 }
 
 /**
+ * One establishment by id, or null when the caller can't see it.
+ *
+ * "Doesn't exist" and "belongs to someone else" are the same answer here,
+ * and deliberately so: RLS filters another account's row out of the result
+ * entirely, so this can't tell the two apart even if it wanted to. Callers
+ * turn both into a 404, which is also what stops a caller learning which
+ * establishment ids are real by probing them.
+ */
+export async function getEstablishment(
+  accessToken: string,
+  id: string,
+): Promise<Establishment | null> {
+  const { data, error } = await userClient(accessToken)
+    .from("establishments")
+    .select(ESTABLISHMENT_COLUMNS)
+    .eq("id", id)
+    // maybeSingle, not single: no matching row is an ordinary outcome here,
+    // and single() would report it as an error.
+    .maybeSingle();
+
+  if (error) throw new DatabaseError(error.message);
+  return data ? toEstablishment(data as EstablishmentRow) : null;
+}
+
+/**
  * The user's establishments, newest first. No account filter is applied
  * here — RLS already restricts the result to rows this token owns.
  */

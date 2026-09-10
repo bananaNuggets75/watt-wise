@@ -12,6 +12,7 @@
  */
 
 import { Router } from "express";
+import { isUuid } from "../lib/uuid.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 import { requireDatabase } from "../middleware/requireDatabase.js";
 import {
@@ -35,10 +36,6 @@ const ERRORS: StoreErrorMessages = {
   notPermitted: "You can't save an establishment for another account.",
 };
 
-/** Postgres generates uuid keys, so anything else is a client bug. */
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 /**
  * Validate the survey body. Messages name the field as the form labels it,
  * so the client can show them without translating.
@@ -53,11 +50,11 @@ function parseEstablishment(
 
   const typeId = String(body.typeId ?? "").trim();
   if (!typeId) errors.push("type is required");
-  else if (!UUID_PATTERN.test(typeId)) errors.push("type is not a valid selection");
+  else if (!isUuid(typeId)) errors.push("type is not a valid selection");
 
   const providerId = String(body.providerId ?? "").trim();
   if (!providerId) errors.push("electric utility is required");
-  else if (!UUID_PATTERN.test(providerId)) {
+  else if (!isUuid(providerId)) {
     errors.push("electric utility is not a valid selection");
   }
 
