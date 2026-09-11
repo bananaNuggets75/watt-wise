@@ -96,7 +96,7 @@ describe("a successful scan", () => {
     mockOpenRouter({
       ok: true,
       content: JSON.stringify({
-        accountName: "Buskowitz, Henry",
+        accountName: "Dela Cruz, Juan",
         provider: "Meralco",
         kwhUsed: 136,
         amount: 1490.07,
@@ -110,7 +110,7 @@ describe("a successful scan", () => {
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({
       engine: "openrouter-vision",
-      accountName: "Buskowitz, Henry",
+      accountName: "Dela Cruz, Juan",
       kwhUsed: 136,
       amount: 1490.07,
     });
@@ -124,6 +124,29 @@ describe("a successful scan", () => {
     expect(url).toContain("openrouter.ai");
     expect((init.headers as Record<string, string>).Authorization).toBe("Bearer test-key");
     expect(init.body as string).toContain("data:image/png;base64,");
+  });
+
+  it("offers OpenRouter a list of models, not just one", async () => {
+    // A single model is a single point of failure: the previous default was
+    // delisted and every scan broke. The list lets OpenRouter fall through.
+    const fetchMock = mockOpenRouter({ ok: true, content: "{}" });
+    await postScan();
+
+    const body = JSON.parse((fetchMock.mock.calls[0][1].body as string) as string);
+    expect(Array.isArray(body.models)).toBe(true);
+    expect(body.models.length).toBeGreaterThan(1);
+    expect(body.model).toBeUndefined();
+  });
+
+  it("puts a configured OCR_MODEL first, keeping the defaults as backups", async () => {
+    process.env.OCR_MODEL = "some/other-model:free";
+    const fetchMock = mockOpenRouter({ ok: true, content: "{}" });
+    await postScan();
+
+    const body = JSON.parse((fetchMock.mock.calls[0][1].body as string) as string);
+    expect(body.models[0]).toBe("some/other-model:free");
+    expect(body.models.length).toBeGreaterThan(1);
+    delete process.env.OCR_MODEL;
   });
 
   it("still succeeds when the model could read nothing", async () => {
@@ -178,6 +201,16 @@ describe("when OpenRouter fails", () => {
     })));
 
     expect((await postScan()).status).toBe(502);
+  });
+
+  it("treats an error returned with HTTP 200 as a failure", async () => {
+    // OpenRouter reports some faults this way; reading it as an empty result
+    // would tell the user their bill was unreadable during an outage.
+    mockOpenRouter({ ok: true, body: { error: { code: 404, message: "No endpoints found" } } });
+    const res = await postScan();
+
+    expect(res.status).toBe(502);
+    expect(res.body.error).toBe("SCAN_FAILED");
   });
 
   it("does not leak the upstream error to the caller", async () => {
