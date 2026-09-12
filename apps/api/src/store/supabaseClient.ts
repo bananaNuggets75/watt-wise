@@ -23,6 +23,20 @@ export class SupabaseNotConfiguredError extends Error {
   }
 }
 
+/**
+ * A database failure, carried up so a route can decide what it means.
+ *
+ * It lives here rather than in one store because every store raises it and
+ * routes branch on it — a per-store copy would mean `instanceof` quietly
+ * failing whenever a route handled an error from a store it didn't import.
+ */
+export class DatabaseError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "DatabaseError";
+  }
+}
+
 /** True when the API has the settings needed to reach the database. */
 export function isDatabaseConfigured(): boolean {
   return Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY);

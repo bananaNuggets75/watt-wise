@@ -1,21 +1,19 @@
 /**
  * Integration tests for the bill routes.
  *
- * These drive the real Express app through supertest — routers, multer,
- * validation, the store and the error handler all run. Only token
- * verification is mocked, so several users can be simulated without a live
- * Supabase project.
+ * The store is mocked, so these cover what the route layer owns: auth, the
+ * ownership gate, validation, and the mapping from a database failure to a
+ * status the client can act on.
  *
- * The isolation tests are the important ones: they're what stops one user's
- * bills being readable by another.
+ * The behaviour worth guarding above all is that the establishment comes
+ * from the path and is checked before anything is written — that is what
+ * stops a caller filing a bill under someone else's establishment.
  */
 
 import request from "supertest";
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../auth/verifyToken.js", () => ({
-  // The middleware checks this first; without it the mock is incomplete and
-  // requests hang rather than failing visibly.
   isAuthConfigured: () => true,
   verifyAccessToken: async (token: string) => {
     if (!token.startsWith("user:")) return null;
@@ -24,214 +22,296 @@ vi.mock("../auth/verifyToken.js", () => ({
   },
 }));
 
+const getEstablishment = vi.fn();
+// The whole module has to be stood in for, since the establishment router
+// imports the rest of it at load time.
+vi.mock("../store/establishmentStore.js", () => ({
+  getEstablishment,
+  listEstablishmentTypes: vi.fn(),
+  listProviders: vi.fn(),
+  createEstablishment: vi.fn(),
+  listEstablishments: vi.fn(),
+}));
+
+const createBill = vi.fn();
+const listBills = vi.fn();
+const getBill = vi.fn();
+vi.mock("../store/billStore.js", () => ({ createBill, listBills, getBill }));
+
+const { DatabaseError } = await import("../store/supabaseClient.js");
 const { createApp } = await import("../app.js");
 const app = createApp();
 
-/** Authorization header for a test user. */
 const asUser = (id: string) => ({ Authorization: `Bearer user:${id}` });
 
-/** A complete, valid set of bill form fields. */
-const validBill = {
-  accountName: "Cafe Marie",
-  provider: "Meralco",
+const EST_ID = "33333333-3333-3333-3333-333333333333";
+const PROVIDER_ID = "22222222-2222-2222-2222-222222222222";
+const OTHER_PROVIDER_ID = "44444444-4444-4444-4444-444444444444";
+const BILL_ID = "55555555-5555-5555-5555-555555555555";
+
+const establishment = {
+  id: EST_ID,
+  accountId: "u1",
+  name: "Brew Corner Cafe",
+  typeId: "11111111-1111-1111-1111-111111111111",
+  providerId: PROVIDER_ID,
+  createdAt: "2026-06-01T00:00:00.000Z",
+};
+
+const billsUrl = `/api/establishments/${EST_ID}/bills`;
+
+/** The form fields a valid submission carries. */
+const validFields = {
   kwhUsed: "312",
   amount: "1785.50",
   periodStart: "2026-06-01",
   periodEnd: "2026-06-30",
 };
 
-/** Post a bill as a user, with the fields as multipart form data. */
-function postBill(userId: string, fields: Record<string, string> = validBill) {
-  const req = request(app).post("/api/bills").set(asUser(userId));
+/** POST the bill form as multipart, the way the browser sends it. */
+function postBill(userId: string, fields: Record<string, string> = validFields) {
+  const req = request(app).post(billsUrl).set(asUser(userId));
   for (const [key, value] of Object.entries(fields)) req.field(key, value);
   return req;
 }
 
-describe("authentication", () => {
-  it("rejects a request with no token", async () => {
-    const res = await request(app).get("/api/bills");
-    expect(res.status).toBe(401);
-    expect(res.body.error).toBe("NOT_AUTHENTICATED");
+beforeEach(() => {
+  vi.clearAllMocks();
+  process.env.SUPABASE_URL = "https://project.supabase.co";
+  process.env.SUPABASE_ANON_KEY = "anon-key";
+  getEstablishment.mockResolvedValue(establishment);
+  createBill.mockImplementation(async (_token, establishmentId, input) => ({
+    id: BILL_ID,
+    establishmentId,
+    ...input,
+  }));
+  listBills.mockResolvedValue([]);
+  getBill.mockResolvedValue(null);
+});
+
+describe("authentication and configuration", () => {
+  it("rejects an unauthenticated request", async () => {
+    expect((await request(app).get(billsUrl)).status).toBe(401);
   });
 
-  it("rejects a token it cannot verify", async () => {
-    const res = await request(app).get("/api/bills").set({ Authorization: "Bearer forged" });
-    expect(res.status).toBe(401);
-  });
+  it("reports a missing database configuration as 503, not a bad request", async () => {
+    delete process.env.SUPABASE_ANON_KEY;
 
-  it("rejects an Authorization header that isn't a bearer token", async () => {
-    const res = await request(app).get("/api/bills").set({ Authorization: "user:alice" });
-    expect(res.status).toBe(401);
-  });
+    const res = await request(app).get(billsUrl).set(asUser("u1"));
 
-  it("accepts a verified token", async () => {
-    const res = await request(app).get("/api/bills").set(asUser("auth-ok"));
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(503);
+    expect(res.body.error).toBe("DATABASE_NOT_CONFIGURED");
   });
 });
 
-describe("creating a bill", () => {
-  it("stores it and returns it with an id and owner", async () => {
-    const res = await postBill("creator");
+describe("the establishment gate", () => {
+  it("404s for an establishment that isn't the caller's", async () => {
+    getEstablishment.mockResolvedValue(null);
+
+    const res = await postBill("u1");
+
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe("ESTABLISHMENT_NOT_FOUND");
+  });
+
+  it("writes nothing when the establishment check fails", async () => {
+    // The point of checking first: a foreign establishment must not reach
+    // the insert and fail there as a foreign-key error.
+    getEstablishment.mockResolvedValue(null);
+
+    await postBill("u1");
+
+    expect(createBill).not.toHaveBeenCalled();
+  });
+});
+
+describe("recording a bill", () => {
+  it("stores it against the establishment named in the path", async () => {
+    const res = await postBill("u1");
 
     expect(res.status).toBe(201);
-    expect(res.body).toMatchObject({
-      accountName: "Cafe Marie",
-      provider: "Meralco",
-      kwhUsed: 312,
-      amount: 1785.5,
-    });
-    expect(res.body.id).toBeTruthy();
-    expect(res.body.userId).toBe("creator");
-  });
-
-  it("coerces the numeric fields out of form strings", async () => {
-    const res = await postBill("coerce");
-    expect(typeof res.body.kwhUsed).toBe("number");
-    expect(typeof res.body.amount).toBe("number");
-  });
-
-  it("reports every missing field at once", async () => {
-    const res = await request(app).post("/api/bills").set(asUser("empty"));
-
-    expect(res.status).toBe(400);
-    expect(res.body.error).toBe("VALIDATION_FAILED");
-    // A single round trip should tell the user everything to fix.
-    expect(res.body.details).toEqual(
-      expect.arrayContaining([
-        "accountName is required",
-        "provider is required",
-        "kwhUsed must be a non-negative number",
-      ]),
+    expect(createBill).toHaveBeenCalledWith(
+      "user:u1",
+      EST_ID,
+      expect.objectContaining({ kwhUsed: 312, amount: 1785.5 }),
+      null,
     );
   });
 
-  it("rejects negative usage", async () => {
-    const res = await postBill("negative", { ...validBill, kwhUsed: "-5" });
+  it("coerces the numbers out of the multipart strings", async () => {
+    await postBill("u1");
+
+    const input = createBill.mock.calls[0][2];
+    expect(typeof input.kwhUsed).toBe("number");
+    expect(typeof input.amount).toBe("number");
+  });
+
+  it("defaults the provider to the establishment's own utility", async () => {
+    // One establishment is one utility account, so the statement is nearly
+    // always from the provider already on file.
+    await postBill("u1");
+
+    expect(createBill.mock.calls[0][2].providerId).toBe(PROVIDER_ID);
+  });
+
+  it("keeps a provider the caller sent explicitly", async () => {
+    await postBill("u1", { ...validFields, providerId: OTHER_PROVIDER_ID });
+
+    expect(createBill.mock.calls[0][2].providerId).toBe(OTHER_PROVIDER_ID);
+  });
+
+  it("keeps the customer account number as plain metadata", async () => {
+    await postBill("u1", { ...validFields, customerAccountNumber: "1234567890" });
+
+    expect(createBill.mock.calls[0][2].customerAccountNumber).toBe("1234567890");
+  });
+});
+
+describe("validation", () => {
+  it("requires the period dates", async () => {
+    const res = await postBill("u1", { kwhUsed: "312", amount: "1785.50" });
+
     expect(res.status).toBe(400);
-    expect(res.body.details).toContain("kwhUsed must be a non-negative number");
+    expect(res.body.details).toContain("periodStart is required");
+    expect(res.body.details).toContain("periodEnd is required");
+  });
+
+  it("rejects negative usage", async () => {
+    const res = await postBill("u1", { ...validFields, kwhUsed: "-5" });
+
+    expect(res.status).toBe(400);
+    expect(res.body.details[0]).toMatch(/kwhUsed/);
   });
 
   it("rejects a non-numeric amount", async () => {
-    const res = await postBill("nan", { ...validBill, amount: "abc" });
+    const res = await postBill("u1", { ...validFields, amount: "a lot" });
+
     expect(res.status).toBe(400);
-    expect(res.body.details).toContain("amount must be a non-negative number");
+    expect(res.body.details[0]).toMatch(/amount/);
   });
 
-  it("treats whitespace-only text as missing", async () => {
-    const res = await postBill("blank", { ...validBill, accountName: "   " });
+  it("rejects a period that ends before it starts", async () => {
+    // The bills_period_order constraint would catch this too, but as a check
+    // violation it would surface as a server fault rather than bad input.
+    const res = await postBill("u1", {
+      ...validFields,
+      periodStart: "2026-06-30",
+      periodEnd: "2026-06-01",
+    });
+
     expect(res.status).toBe(400);
-    expect(res.body.details).toContain("accountName is required");
+    expect(res.body.details).toContain("periodEnd must not be before periodStart");
+  });
+
+  it("rejects a provider name where an id belongs", async () => {
+    const res = await postBill("u1", { ...validFields, providerId: "Meralco" });
+
+    expect(res.status).toBe(400);
+    expect(res.body.details).toContain("provider is not a valid selection");
   });
 
   it("saves nothing when validation fails", async () => {
-    await postBill("rejected", { ...validBill, accountName: "" });
-    const list = await request(app).get("/api/bills").set(asUser("rejected"));
-    expect(list.body).toEqual([]);
+    await postBill("u1", { kwhUsed: "312" });
+
+    expect(createBill).not.toHaveBeenCalled();
   });
 });
 
 describe("file attachments", () => {
-  const png = Buffer.from("89504e470d0a1a0a", "hex");
-
   it("records the file's metadata but not its bytes", async () => {
     const res = await request(app)
-      .post("/api/bills")
-      .set(asUser("with-file"))
-      .field(validBill)
-      .attach("file", png, { filename: "june.png", contentType: "image/png" });
+      .post(billsUrl)
+      .set(asUser("u1"))
+      .field(validFields)
+      .attach("file", Buffer.from("fake image bytes"), {
+        filename: "june-2026.png",
+        contentType: "image/png",
+      });
 
     expect(res.status).toBe(201);
-    expect(res.body.file).toMatchObject({ originalName: "june.png", mimeType: "image/png" });
-    // The image itself is deliberately never stored.
-    expect(JSON.stringify(res.body)).not.toContain("89504e47");
+    expect(createBill.mock.calls[0][3]).toEqual({
+      originalName: "june-2026.png",
+      mimeType: "image/png",
+      size: 16,
+    });
   });
 
-  it("accepts a bill with no file at all", async () => {
-    const res = await postBill("no-file");
-    expect(res.status).toBe(201);
-    expect(res.body.file).toBeNull();
-  });
-
-  it("rejects a file type that isn't an image or PDF", async () => {
+  it("rejects a file type that is neither an image nor a PDF", async () => {
     const res = await request(app)
-      .post("/api/bills")
-      .set(asUser("bad-type"))
-      .field(validBill)
-      .attach("file", Buffer.from("hello"), { filename: "notes.txt", contentType: "text/plain" });
+      .post(billsUrl)
+      .set(asUser("u1"))
+      .field(validFields)
+      .attach("file", Buffer.from("#!/bin/sh"), {
+        filename: "payload.sh",
+        contentType: "application/x-sh",
+      });
 
     expect(res.status).toBe(400);
     expect(res.body.error).toBe("UNSUPPORTED_FILE_TYPE");
   });
-
-  it("rejects a file over the 10 MB cap", async () => {
-    const tooBig = Buffer.alloc(11 * 1024 * 1024, 0);
-    const res = await request(app)
-      .post("/api/bills")
-      .set(asUser("too-big"))
-      .field(validBill)
-      .attach("file", tooBig, { filename: "huge.png", contentType: "image/png" });
-
-    expect(res.status).toBe(400);
-    expect(res.body.error).toBe("FILE_TOO_LARGE");
-  });
 });
 
 describe("reading bills", () => {
-  it("returns an empty list for a user with no bills", async () => {
-    const res = await request(app).get("/api/bills").set(asUser("nobody"));
-    expect(res.body).toEqual([]);
-  });
+  it("lists only the establishment's own", async () => {
+    listBills.mockResolvedValue([{ id: BILL_ID, establishmentId: EST_ID }]);
 
-  it("returns newest first", async () => {
-    await postBill("ordered", { ...validBill, accountName: "First" });
-    await postBill("ordered", { ...validBill, accountName: "Second" });
-
-    const res = await request(app).get("/api/bills").set(asUser("ordered"));
-    expect(res.body.map((b: { accountName: string }) => b.accountName)).toEqual([
-      "Second",
-      "First",
-    ]);
-  });
-
-  it("fetches one bill by id", async () => {
-    const created = await postBill("fetcher");
-    const res = await request(app)
-      .get(`/api/bills/${created.body.id}`)
-      .set(asUser("fetcher"));
+    const res = await request(app).get(billsUrl).set(asUser("u1"));
 
     expect(res.status).toBe(200);
-    expect(res.body.id).toBe(created.body.id);
+    expect(listBills).toHaveBeenCalledWith("user:u1", EST_ID);
   });
 
-  it("404s for an id that doesn't exist", async () => {
-    const res = await request(app).get("/api/bills/does-not-exist").set(asUser("fetcher"));
+  it("fetches one by id", async () => {
+    getBill.mockResolvedValue({ id: BILL_ID, establishmentId: EST_ID });
+
+    const res = await request(app).get(`${billsUrl}/${BILL_ID}`).set(asUser("u1"));
+
+    expect(res.status).toBe(200);
+    expect(getBill).toHaveBeenCalledWith("user:u1", EST_ID, BILL_ID);
+  });
+
+  it("404s for a bill the caller can't see", async () => {
+    getBill.mockResolvedValue(null);
+
+    const res = await request(app).get(`${billsUrl}/${BILL_ID}`).set(asUser("u1"));
+
     expect(res.status).toBe(404);
+    expect(res.body.error).toBe("BILL_NOT_FOUND");
+  });
+
+  it("404s for a malformed id without querying", async () => {
+    // Postgres would raise on a uuid comparison, which would read as a
+    // server fault rather than a bad path.
+    const res = await request(app).get(`${billsUrl}/not-a-uuid`).set(asUser("u1"));
+
+    expect(res.status).toBe(404);
+    expect(getBill).not.toHaveBeenCalled();
   });
 });
 
-describe("isolation between users", () => {
-  let aliceBillId: string;
+describe("database failures", () => {
+  it("reports a stale provider selection as a 400", async () => {
+    createBill.mockRejectedValue(
+      new DatabaseError('insert violates foreign key constraint "bills_provider_id_fkey"'),
+    );
 
-  beforeAll(async () => {
-    const alice = await postBill("alice", { ...validBill, accountName: "Alice Cafe" });
-    aliceBillId = alice.body.id;
-    await postBill("bob", { ...validBill, accountName: "Bob Diner" });
+    const res = await postBill("u1");
+
+    expect(res.status).toBe(400);
+    expect(res.body.details[0]).toMatch(/no longer exists/);
   });
 
-  it("shows each user only their own bills", async () => {
-    const alice = await request(app).get("/api/bills").set(asUser("alice"));
-    const bob = await request(app).get("/api/bills").set(asUser("bob"));
+  it("reports an RLS refusal as a 403", async () => {
+    createBill.mockRejectedValue(
+      new DatabaseError('new row violates row-level security policy for table "bills"'),
+    );
 
-    expect(alice.body.map((b: { accountName: string }) => b.accountName)).toEqual(["Alice Cafe"]);
-    expect(bob.body.map((b: { accountName: string }) => b.accountName)).toEqual(["Bob Diner"]);
+    expect((await postBill("u1")).status).toBe(403);
   });
 
-  it("hides another user's bill behind the same 404 as a missing one", async () => {
-    // Not 403: that would confirm the id exists, letting someone probe for
-    // valid ids.
-    const res = await request(app).get(`/api/bills/${aliceBillId}`).set(asUser("bob"));
-    expect(res.status).toBe(404);
-    expect(res.body.error).toBe("BILL_NOT_FOUND");
+  it("reports an unreachable database as a 502", async () => {
+    listBills.mockRejectedValue(new DatabaseError("fetch failed"));
+
+    expect((await request(app).get(billsUrl).set(asUser("u1"))).status).toBe(502);
   });
 });

@@ -11,21 +11,13 @@
  * chosen shape rather than a service-role client.
  */
 
-import { userClient } from "./supabaseClient.js";
+import { DatabaseError, userClient } from "./supabaseClient.js";
 import type {
   Establishment,
   EstablishmentInput,
   EstablishmentType,
   Provider,
 } from "../types/establishment.js";
-
-/** A database failure, carried up so the route can report it as a 502. */
-export class DatabaseError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "DatabaseError";
-  }
-}
 
 /** The row shape Postgres returns, before mapping to our camelCase type. */
 interface EstablishmentRow {
@@ -114,6 +106,31 @@ export async function createEstablishment(
 
   if (error) throw new DatabaseError(error.message);
   return toEstablishment(data as EstablishmentRow);
+}
+
+/**
+ * One establishment by id, or null when the caller can't see it.
+ *
+ * "Doesn't exist" and "belongs to someone else" are the same answer here,
+ * and deliberately so: RLS filters another account's row out of the result
+ * entirely, so this can't tell the two apart even if it wanted to. Callers
+ * turn both into a 404, which is also what stops a caller learning which
+ * establishment ids are real by probing them.
+ */
+export async function getEstablishment(
+  accessToken: string,
+  id: string,
+): Promise<Establishment | null> {
+  const { data, error } = await userClient(accessToken)
+    .from("establishments")
+    .select(ESTABLISHMENT_COLUMNS)
+    .eq("id", id)
+    // maybeSingle, not single: no matching row is an ordinary outcome here,
+    // and single() would report it as an error.
+    .maybeSingle();
+
+  if (error) throw new DatabaseError(error.message);
+  return data ? toEstablishment(data as EstablishmentRow) : null;
 }
 
 /**

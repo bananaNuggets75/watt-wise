@@ -1,17 +1,20 @@
 /**
  * Integration tests for the appliance survey routes.
  *
- * The survey submits several cards in one request, so the behaviour that
- * matters is the batch contract: everything is validated before anything is
- * saved, and errors identify which card is wrong.
+ * The store is mocked, so these cover the route layer's own work: auth, the
+ * ownership gate, validation, and the mapping from a database failure to a
+ * status the client can act on.
+ *
+ * Two behaviours matter most. The establishment comes from the path and is
+ * checked before anything is written; and a survey with one bad row saves
+ * nothing at all, since a half-saved list would tell the recommendation
+ * engine the user owns fewer appliances than they said.
  */
 
 import request from "supertest";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../auth/verifyToken.js", () => ({
-  // The middleware checks this first; without it the mock is incomplete and
-  // requests hang rather than failing visibly.
   isAuthConfigured: () => true,
   verifyAccessToken: async (token: string) => {
     if (!token.startsWith("user:")) return null;
@@ -20,156 +23,230 @@ vi.mock("../auth/verifyToken.js", () => ({
   },
 }));
 
+const getEstablishment = vi.fn();
+vi.mock("../store/establishmentStore.js", () => ({
+  getEstablishment,
+  listEstablishmentTypes: vi.fn(),
+  listProviders: vi.fn(),
+  createEstablishment: vi.fn(),
+  listEstablishments: vi.fn(),
+}));
+
+const createAppliances = vi.fn();
+const listAppliances = vi.fn();
+const deleteAppliance = vi.fn();
+vi.mock("../store/applianceStore.js", () => ({
+  createAppliances,
+  listAppliances,
+  deleteAppliance,
+  listApplianceKinds: vi.fn(),
+  listApplianceSubtypes: vi.fn(),
+}));
+
+const { DatabaseError } = await import("../store/supabaseClient.js");
 const { createApp } = await import("../app.js");
 const app = createApp();
 
 const asUser = (id: string) => ({ Authorization: `Bearer user:${id}` });
 
-function postAppliances(userId: string, body: object) {
-  return request(app).post("/api/appliances").set(asUser(userId)).send(body);
-}
+const EST_ID = "33333333-3333-3333-3333-333333333333";
+const KIND_ID = "66666666-6666-6666-6666-666666666666";
+const SUBTYPE_ID = "77777777-7777-7777-7777-777777777777";
+const APPLIANCE_ID = "88888888-8888-8888-8888-888888888888";
 
-describe("authentication", () => {
-  it("rejects an unauthenticated submission", async () => {
-    const res = await request(app).post("/api/appliances").send([{ type: "TV", count: 1 }]);
-    expect(res.status).toBe(401);
+const establishment = {
+  id: EST_ID,
+  accountId: "u1",
+  name: "Brew Corner Cafe",
+  typeId: "11111111-1111-1111-1111-111111111111",
+  providerId: "22222222-2222-2222-2222-222222222222",
+  createdAt: "2026-06-01T00:00:00.000Z",
+};
+
+const url = `/api/establishments/${EST_ID}/appliances`;
+
+const post = (userId: string, body: unknown) =>
+  request(app).post(url).set(asUser(userId)).send(body as object);
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  process.env.SUPABASE_URL = "https://project.supabase.co";
+  process.env.SUPABASE_ANON_KEY = "anon-key";
+  getEstablishment.mockResolvedValue(establishment);
+  createAppliances.mockImplementation(async (_token, establishmentId, inputs) =>
+    inputs.map((input: object, i: number) => ({ id: `a${i}`, establishmentId, ...input })),
+  );
+  listAppliances.mockResolvedValue([]);
+  deleteAppliance.mockResolvedValue(true);
+});
+
+describe("authentication and ownership", () => {
+  it("rejects an unauthenticated request", async () => {
+    expect((await request(app).get(url)).status).toBe(401);
   });
 
-  it("rejects an unauthenticated read", async () => {
-    expect((await request(app).get("/api/appliances")).status).toBe(401);
+  it("404s for an establishment that isn't the caller's, saving nothing", async () => {
+    getEstablishment.mockResolvedValue(null);
+
+    const res = await post("u1", { kindId: KIND_ID });
+
+    expect(res.status).toBe(404);
+    expect(createAppliances).not.toHaveBeenCalled();
   });
 });
 
-describe("submitting a survey", () => {
-  it("saves a whole list in one request", async () => {
-    const res = await postAppliances("batch", [
-      { type: "Air Conditioner", count: 2, isInverter: false, ageYears: 9 },
-      { type: "Television", count: 1, isInverter: true, ageYears: 3 },
+describe("saving a survey", () => {
+  it("saves an array against the establishment named in the path", async () => {
+    const res = await post("u1", [
+      { kindId: KIND_ID, subtypeId: SUBTYPE_ID, count: 2 },
+      { kindId: KIND_ID, count: 1, ageYears: 9 },
     ]);
 
     expect(res.status).toBe(201);
-    expect(res.body).toHaveLength(2);
-    expect(res.body[0]).toMatchObject({ type: "Air Conditioner", count: 2, isInverter: false });
-    expect(res.body[0].userId).toBe("batch");
+    expect(createAppliances).toHaveBeenCalledWith("user:u1", EST_ID, [
+      { kindId: KIND_ID, subtypeId: SUBTYPE_ID, count: 2, ageYears: undefined },
+      { kindId: KIND_ID, subtypeId: undefined, count: 1, ageYears: 9 },
+    ]);
   });
 
-  it("accepts a single appliance sent as an object", async () => {
-    const res = await postAppliances("single", { type: "Refrigerator", count: 1 });
+  it("accepts a single appliance as well as a list", async () => {
+    const res = await post("u1", { kindId: KIND_ID, count: 1 });
+
     expect(res.status).toBe(201);
-    expect(res.body).toHaveLength(1);
+    expect(createAppliances.mock.calls[0][2]).toHaveLength(1);
   });
 
-  it("defaults the count to 1", async () => {
-    const res = await postAppliances("default-count", { type: "Electric Fan" });
-    expect(res.body[0].count).toBe(1);
+  it("defaults the count to one, where the survey's counter starts", async () => {
+    await post("u1", { kindId: KIND_ID });
+
+    expect(createAppliances.mock.calls[0][2][0].count).toBe(1);
   });
 
-  it("leaves optional details undefined when not answered", async () => {
-    const res = await postAppliances("optional", { type: "Water Heater", count: 1 });
-    expect(res.body[0].isInverter).toBeUndefined();
-    expect(res.body[0].ageYears).toBeUndefined();
-  });
+  it("treats a blank variant as no variant", async () => {
+    // A kind with no variants sends "" rather than omitting the field.
+    await post("u1", { kindId: KIND_ID, subtypeId: "" });
 
-  it("assigns a placeholder account when none is given", async () => {
-    const res = await postAppliances("placeholder", { type: "Lighting", count: 4 });
-    expect(res.body[0].accountId).toBe("00000000-0000-0000-0000-000000000000");
+    expect(createAppliances.mock.calls[0][2][0].subtypeId).toBeUndefined();
   });
 });
 
 describe("validation", () => {
-  it("requires a type", async () => {
-    const res = await postAppliances("no-type", [{ count: 1 }]);
+  it("requires a kind", async () => {
+    const res = await post("u1", { count: 1 });
+
     expect(res.status).toBe(400);
-    expect(res.body.details).toContain("appliance 1: type is required");
+    expect(res.body.details).toContain("appliance 1: kind is required");
   });
 
-  it("names the offending card so the UI can point at it", async () => {
-    const res = await postAppliances("which-card", [
-      { type: "Refrigerator", count: 1 },
-      { type: "", count: 1 },
-    ]);
+  it("rejects an appliance name where an id belongs", async () => {
+    const res = await post("u1", { kindId: "Air Conditioner" });
 
     expect(res.status).toBe(400);
-    expect(res.body.details[0]).toMatch(/^appliance 2:/);
+    expect(res.body.details).toContain("appliance 1: kind is not a valid selection");
+  });
+
+  it("rejects a variant that isn't a selection", async () => {
+    const res = await post("u1", { kindId: KIND_ID, subtypeId: "Inverter" });
+
+    expect(res.status).toBe(400);
+    expect(res.body.details).toContain("appliance 1: variant is not a valid selection");
   });
 
   it("rejects a fractional count", async () => {
-    const res = await postAppliances("fraction", [{ type: "TV", count: 1.5 }]);
-    expect(res.status).toBe(400);
-    expect(res.body.details).toContain("appliance 1: count must be a whole number of at least 1");
-  });
+    const res = await post("u1", { kindId: KIND_ID, count: 1.5 });
 
-  it("rejects a count below one", async () => {
-    const res = await postAppliances("zero", [{ type: "TV", count: 0 }]);
     expect(res.status).toBe(400);
+    expect(res.body.details[0]).toMatch(/whole number/);
   });
 
   it("rejects a negative age", async () => {
-    const res = await postAppliances("neg-age", [{ type: "TV", count: 1, ageYears: -2 }]);
+    const res = await post("u1", { kindId: KIND_ID, ageYears: -3 });
+
     expect(res.status).toBe(400);
-    expect(res.body.details).toContain("appliance 1: ageYears must be a non-negative number");
+    expect(res.body.details[0]).toMatch(/ageYears/);
+  });
+
+  it("names the row that is wrong", async () => {
+    // The survey shows a card per appliance; the position is how the client
+    // knows which one to mark.
+    const res = await post("u1", [{ kindId: KIND_ID }, { count: 1 }]);
+
+    expect(res.body.details).toContain("appliance 2: kind is required");
+  });
+
+  it("saves nothing when any row is invalid", async () => {
+    await post("u1", [{ kindId: KIND_ID }, {}]);
+
+    expect(createAppliances).not.toHaveBeenCalled();
   });
 
   it("rejects an empty submission", async () => {
-    const res = await postAppliances("empty-list", []);
+    const res = await post("u1", []);
+
     expect(res.status).toBe(400);
-  });
-
-  it("saves nothing when any card is invalid", async () => {
-    // The whole point of validating up front: a survey must not half-save.
-    await postAppliances("all-or-nothing", [
-      { type: "Refrigerator", count: 1 },
-      { type: "", count: 0 },
-    ]);
-
-    const list = await request(app).get("/api/appliances").set(asUser("all-or-nothing"));
-    expect(list.body).toEqual([]);
+    expect(res.body.details).toContain("no appliances submitted");
   });
 });
 
-describe("reading and deleting", () => {
-  it("lists only the requesting user's appliances", async () => {
-    await postAppliances("owner-a", [{ type: "Air Conditioner", count: 1 }]);
-    await postAppliances("owner-b", [{ type: "Television", count: 1 }]);
+describe("reading and removing", () => {
+  it("lists only this establishment's appliances", async () => {
+    const res = await request(app).get(url).set(asUser("u1"));
 
-    const a = await request(app).get("/api/appliances").set(asUser("owner-a"));
-    const b = await request(app).get("/api/appliances").set(asUser("owner-b"));
-
-    expect(a.body.map((x: { type: string }) => x.type)).toEqual(["Air Conditioner"]);
-    expect(b.body.map((x: { type: string }) => x.type)).toEqual(["Television"]);
+    expect(res.status).toBe(200);
+    expect(listAppliances).toHaveBeenCalledWith("user:u1", EST_ID);
   });
 
-  it("filters by accountId when asked", async () => {
-    await postAppliances("filterer", [
-      { type: "Air Conditioner", count: 1, accountId: "acct-1" },
-      { type: "Television", count: 1, accountId: "acct-2" },
-    ]);
+  it("removes one and answers 204", async () => {
+    const res = await request(app).delete(`${url}/${APPLIANCE_ID}`).set(asUser("u1"));
 
-    const res = await request(app)
-      .get("/api/appliances?accountId=acct-1")
-      .set(asUser("filterer"));
-
-    expect(res.body.map((x: { type: string }) => x.type)).toEqual(["Air Conditioner"]);
+    expect(res.status).toBe(204);
+    expect(deleteAppliance).toHaveBeenCalledWith("user:u1", EST_ID, APPLIANCE_ID);
   });
 
-  it("deletes an entry", async () => {
-    const created = await postAppliances("deleter", [{ type: "Electric Fan", count: 1 }]);
-    const id = created.body[0].id;
+  it("404s when nothing was removed", async () => {
+    deleteAppliance.mockResolvedValue(false);
 
-    expect((await request(app).delete(`/api/appliances/${id}`).set(asUser("deleter"))).status).toBe(204);
-    const list = await request(app).get("/api/appliances").set(asUser("deleter"));
-    expect(list.body).toEqual([]);
-  });
+    const res = await request(app).delete(`${url}/${APPLIANCE_ID}`).set(asUser("u1"));
 
-  it("will not delete another user's entry", async () => {
-    const created = await postAppliances("victim", [{ type: "Water Heater", count: 1 }]);
-    const id = created.body[0].id;
-
-    const res = await request(app).delete(`/api/appliances/${id}`).set(asUser("attacker"));
     expect(res.status).toBe(404);
+    expect(res.body.error).toBe("APPLIANCE_NOT_FOUND");
+  });
 
-    // And it's still there for its owner.
-    const list = await request(app).get("/api/appliances").set(asUser("victim"));
-    expect(list.body).toHaveLength(1);
+  it("404s for a malformed id without querying", async () => {
+    const res = await request(app).delete(`${url}/not-a-uuid`).set(asUser("u1"));
+
+    expect(res.status).toBe(404);
+    expect(deleteAppliance).not.toHaveBeenCalled();
+  });
+});
+
+describe("database failures", () => {
+  it("reports a subtype that doesn't belong to its kind as a 400", async () => {
+    // appliances_subtype_matches_kind is a composite foreign key, so pairing
+    // an Air Conditioner with "OLED" arrives as a foreign-key violation.
+    createAppliances.mockRejectedValue(
+      new DatabaseError(
+        'insert violates foreign key constraint "appliances_subtype_matches_kind"',
+      ),
+    );
+
+    const res = await post("u1", { kindId: KIND_ID, subtypeId: SUBTYPE_ID });
+
+    expect(res.status).toBe(400);
+    expect(res.body.details[0]).toMatch(/don't go together/);
+  });
+
+  it("reports an RLS refusal as a 403", async () => {
+    createAppliances.mockRejectedValue(
+      new DatabaseError('new row violates row-level security policy for table "appliances"'),
+    );
+
+    expect((await post("u1", { kindId: KIND_ID })).status).toBe(403);
+  });
+
+  it("reports an unreachable database as a 502", async () => {
+    listAppliances.mockRejectedValue(new DatabaseError("fetch failed"));
+
+    expect((await request(app).get(url).set(asUser("u1"))).status).toBe(502);
   });
 });

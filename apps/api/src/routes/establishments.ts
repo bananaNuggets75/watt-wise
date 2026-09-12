@@ -1,10 +1,13 @@
 /**
- * Routes for the establishment survey shown straight after registration.
+ * Routes for the establishment survey shown straight after registration,
+ * and the mounting point for everything an establishment owns.
  *
  *   GET  /api/establishments/types      The establishment types to choose from.
  *   GET  /api/establishments/providers  The electric utilities to choose from.
  *   POST /api/establishments            Create the user's establishment.
  *   GET  /api/establishments            List the user's establishments.
+ *   .../:establishmentId/bills          Bills recorded for one establishment.
+ *   .../:establishmentId/appliances     The establishment's appliance survey.
  *
  * All routes require authentication. The two lookup lists are shared
  * reference data rather than user data, but they still sit behind auth
@@ -12,48 +15,45 @@
  */
 
 import { Router } from "express";
+import { isUuid } from "../lib/uuid.js";
 import { requireAuth } from "../middleware/requireAuth.js";
+import { requireDatabase } from "../middleware/requireDatabase.js";
+import { requireEstablishment } from "../middleware/requireEstablishment.js";
+import { appliancesRouter } from "./appliances.js";
+import { billsRouter } from "./bills.js";
 import {
   createEstablishment,
-  DatabaseError,
   listEstablishments,
   listEstablishmentTypes,
   listProviders,
 } from "../store/establishmentStore.js";
-import {
-  isDatabaseConfigured,
-  SupabaseNotConfiguredError,
-} from "../store/supabaseClient.js";
+import { respondToStoreError, type StoreErrorMessages } from "./storeErrors.js";
 import type { EstablishmentInput } from "../types/establishment.js";
 
 export const establishmentsRouter = Router();
 
 establishmentsRouter.use(requireAuth);
+establishmentsRouter.use(requireDatabase);
 
 /**
- * Fail fast, and distinguish "this deployment can't reach the database"
- * from "your request was wrong" — the same distinction requireAuth draws
- * for SUPABASE_URL, and for the same reason: a misconfiguration reported as
- * a validation error sends people to debug their own input.
+ * Everything an establishment owns hangs off it in the URL, matching how it
+ * hangs off it in the schema. requireEstablishment resolves the id once, so
+ * the sub-routers can take ownership as given — and auth and the database
+ * guard above already apply to them, since they run on this router first.
  */
-establishmentsRouter.use((_req, res, next) => {
-  if (!isDatabaseConfigured()) {
-    console.error(
-      "[establishments] SUPABASE_URL / SUPABASE_ANON_KEY are not set, so " +
-        "establishments cannot be read or written. Set them in apps/api/.env " +
-        "and restart — dotenv reads the file once at startup.",
-    );
-    return res.status(503).json({
-      error: "DATABASE_NOT_CONFIGURED",
-      message: "The server can't reach the database.",
-    });
-  }
-  return next();
-});
+establishmentsRouter.use("/:establishmentId/bills", requireEstablishment, billsRouter);
+establishmentsRouter.use(
+  "/:establishmentId/appliances",
+  requireEstablishment,
+  appliancesRouter,
+);
 
-/** Postgres generates uuid keys, so anything else is a client bug. */
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** How a database failure reads to someone filling in the survey. */
+const ERRORS: StoreErrorMessages = {
+  source: "establishments",
+  staleReference: "that type or electric utility no longer exists",
+  notPermitted: "You can't save an establishment for another account.",
+};
 
 /**
  * Validate the survey body. Messages name the field as the form labels it,
@@ -69,11 +69,11 @@ function parseEstablishment(
 
   const typeId = String(body.typeId ?? "").trim();
   if (!typeId) errors.push("type is required");
-  else if (!UUID_PATTERN.test(typeId)) errors.push("type is not a valid selection");
+  else if (!isUuid(typeId)) errors.push("type is not a valid selection");
 
   const providerId = String(body.providerId ?? "").trim();
   if (!providerId) errors.push("electric utility is required");
-  else if (!UUID_PATTERN.test(providerId)) {
+  else if (!isUuid(providerId)) {
     errors.push("electric utility is not a valid selection");
   }
 
@@ -88,59 +88,26 @@ function parseEstablishment(
   };
 }
 
-/**
- * Translate a store failure into a response. A bad type_id or provider_id
- * is a foreign-key violation, which is the caller's mistake (a stale option
- * list) rather than a server fault, so it reads as a 400.
- */
-function respondToStoreError(err: unknown, res: import("express").Response) {
-  if (err instanceof SupabaseNotConfiguredError) {
-    return res.status(503).json({
-      error: "DATABASE_NOT_CONFIGURED",
-      message: "The server can't reach the database.",
-    });
-  }
-  if (err instanceof DatabaseError) {
-    if (/foreign key|violates foreign key constraint/i.test(err.message)) {
-      return res.status(400).json({
-        error: "VALIDATION_FAILED",
-        details: ["that type or electric utility no longer exists"],
-      });
-    }
-    if (/row-level security/i.test(err.message)) {
-      return res.status(403).json({
-        error: "NOT_PERMITTED",
-        message: "You can't save an establishment for another account.",
-      });
-    }
-    console.error("[establishments] database error:", err.message);
-    return res
-      .status(502)
-      .json({ error: "DATABASE_ERROR", message: "Couldn't reach the database." });
-  }
-  throw err;
-}
-
 /** GET /api/establishments/types — the seeded establishment types. */
-establishmentsRouter.get("/types", async (req, res) => {
+establishmentsRouter.get("/types", async (req, res, next) => {
   try {
     res.json(await listEstablishmentTypes(req.accessToken!));
   } catch (err) {
-    respondToStoreError(err, res);
+    respondToStoreError(err, res, next, ERRORS);
   }
 });
 
 /** GET /api/establishments/providers — the electric utilities on offer. */
-establishmentsRouter.get("/providers", async (req, res) => {
+establishmentsRouter.get("/providers", async (req, res, next) => {
   try {
     res.json(await listProviders(req.accessToken!));
   } catch (err) {
-    respondToStoreError(err, res);
+    respondToStoreError(err, res, next, ERRORS);
   }
 });
 
 /** POST /api/establishments — create the signed-in user's establishment. */
-establishmentsRouter.post("/", async (req, res) => {
+establishmentsRouter.post("/", async (req, res, next) => {
   const { input, errors } = parseEstablishment(req.body ?? {});
   if (!input) {
     return res.status(400).json({ error: "VALIDATION_FAILED", details: errors });
@@ -151,15 +118,15 @@ establishmentsRouter.post("/", async (req, res) => {
     const saved = await createEstablishment(req.accessToken!, req.user!.id, input);
     return res.status(201).json(saved);
   } catch (err) {
-    return respondToStoreError(err, res);
+    return respondToStoreError(err, res, next, ERRORS);
   }
 });
 
 /** GET /api/establishments — the user's own establishments, newest first. */
-establishmentsRouter.get("/", async (req, res) => {
+establishmentsRouter.get("/", async (req, res, next) => {
   try {
     res.json(await listEstablishments(req.accessToken!));
   } catch (err) {
-    respondToStoreError(err, res);
+    respondToStoreError(err, res, next, ERRORS);
   }
 });

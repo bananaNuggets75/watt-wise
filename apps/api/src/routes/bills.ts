@@ -1,15 +1,18 @@
 /**
- * Routes for the utility bill upload / input module.
+ * Routes for storing an establishment's bills.
  *
- *   POST /api/bills       Create a bill from manual form fields, with an
- *                         optional scanned file (JPG / PNG / PDF, max 10 MB).
- *   POST /api/bills/scan  OCR an uploaded image and return suggested fields
- *                         (does not save anything).
- *   GET  /api/bills       List the signed-in user's bills (newest first).
- *   GET  /api/bills/:id   Fetch one of the user's bills by id.
+ *   POST /api/establishments/:establishmentId/bills      Record a bill.
+ *   GET  /api/establishments/:establishmentId/bills      List them.
+ *   GET  /api/establishments/:establishmentId/bills/:id  Fetch one.
  *
- * All routes require authentication and are scoped to req.user, so a bill is
- * only ever visible to the account that uploaded it.
+ * Mounted as a sub-router of the establishments router, so authentication,
+ * the database guard and the ownership check have all run before anything
+ * here does — the handlers read the resolved establishment off the request
+ * rather than the id from the path. `mergeParams` keeps :establishmentId
+ * reachable anyway, so a later handler that wants it isn't surprised.
+ *
+ * Scanning lives in billScan.ts — it stores nothing, so it needs no
+ * establishment.
  *
  * The request is multipart/form-data: the file arrives as "file" and the
  * numbers arrive as ordinary text fields alongside it. multer parses both.
@@ -18,24 +21,26 @@
 import { Router } from "express";
 import multer from "multer";
 import { createBill, getBill, listBills } from "../store/billStore.js";
-import { getBillScanner, isScanAvailable } from "../ocr/index.js";
-import { requireAuth } from "../middleware/requireAuth.js";
+import { isUuid } from "../lib/uuid.js";
+import { respondToStoreError, type StoreErrorMessages } from "./storeErrors.js";
+import { MAX_FILE_BYTES } from "./uploadLimits.js";
 import type { BillFileMeta, BillInput } from "../types/bill.js";
 
-export const billsRouter = Router();
+export const billsRouter = Router({ mergeParams: true });
 
-// Every bill route needs a signed-in user: bills are per-user data, and the
-// handlers below rely on req.user to scope reads and writes.
-billsRouter.use(requireAuth);
+/** How a database failure reads to someone filing a bill. */
+const ERRORS: StoreErrorMessages = {
+  source: "bills",
+  staleReference: "that establishment or electric utility no longer exists",
+  notPermitted: "You can't save a bill for another account's establishment.",
+};
 
-/** File-upload limits and allowed types for a bill scan. */
-const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10 MB, matches the UI hint
 const ALLOWED_MIME = new Set(["image/jpeg", "image/png", "application/pdf"]);
 
 /**
- * multer config: keep the file in memory (we only read its metadata for
- * v1 — we don't persist bytes yet), enforce the size cap, and reject any
- * type that isn't JPG / PNG / PDF before it's fully buffered.
+ * multer config: keep the file in memory (only its metadata is stored — the
+ * bytes are never persisted), enforce the size cap, and reject any type that
+ * isn't JPG / PNG / PDF before it is fully buffered.
  */
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -50,26 +55,12 @@ const upload = multer({
 });
 
 /**
- * Separate upload config for OCR: scanning is restricted to JPG / PNG, since
- * the vision model is sent a raster image. The size cap is shared.
- */
-const IMAGE_MIME = new Set(["image/jpeg", "image/png"]);
-const uploadImage = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: MAX_FILE_BYTES },
-  fileFilter: (_req, file, cb) => {
-    if (IMAGE_MIME.has(file.mimetype)) {
-      cb(null, true);
-    } else {
-      cb(new Error("UNSUPPORTED_FILE_TYPE"));
-    }
-  },
-});
-
-/**
- * Validate and normalise the manual form fields into a BillInput.
- * Returns either the parsed input or a list of human-readable errors, so
- * the caller can respond with 400 and tell the user exactly what to fix.
+ * Validate and normalise the form fields into a BillInput. Returns either
+ * the parsed input or a list of human-readable problems, so the caller can
+ * respond with 400 and tell the user exactly what to fix.
+ *
+ * There is no accountName or provider name here any more: both describe the
+ * establishment, which the path already names.
  */
 function parseBillInput(body: Record<string, unknown>): {
   input?: BillInput;
@@ -77,46 +68,63 @@ function parseBillInput(body: Record<string, unknown>): {
 } {
   const errors: string[] = [];
 
-  // Trim the string fields; treat empty/whitespace as missing.
-  const accountName = String(body.accountName ?? "").trim();
-  const provider = String(body.provider ?? "").trim();
   const periodStart = String(body.periodStart ?? "").trim();
   const periodEnd = String(body.periodEnd ?? "").trim();
+  const customerAccountNumber = String(body.customerAccountNumber ?? "").trim();
+  const providerId = String(body.providerId ?? "").trim();
 
   // Numbers come across as strings in multipart form data — coerce them.
   const kwhUsed = Number(body.kwhUsed);
   const amount = Number(body.amount);
 
-  if (!accountName) errors.push("accountName is required");
-  if (!provider) errors.push("provider is required");
   if (!periodStart) errors.push("periodStart is required");
   if (!periodEnd) errors.push("periodEnd is required");
-  if (!Number.isFinite(kwhUsed) || kwhUsed < 0)
+  if (!Number.isFinite(kwhUsed) || kwhUsed < 0) {
     errors.push("kwhUsed must be a non-negative number");
-  if (!Number.isFinite(amount) || amount < 0)
+  }
+  if (!Number.isFinite(amount) || amount < 0) {
     errors.push("amount must be a non-negative number");
+  }
+  // The bills_period_order constraint would reject this too, but as a check
+  // violation it would read as a server fault. Catching it here also lets
+  // the message say which end is wrong.
+  if (periodStart && periodEnd && periodEnd < periodStart) {
+    errors.push("periodEnd must not be before periodStart");
+  }
+  // Optional, but if given it has to be a real selection rather than the
+  // provider's name typed out.
+  if (providerId && !isUuid(providerId)) {
+    errors.push("provider is not a valid selection");
+  }
 
   if (errors.length > 0) return { errors };
 
   return {
-    input: { accountName, provider, kwhUsed, amount, periodStart, periodEnd },
+    input: {
+      providerId: providerId || undefined,
+      customerAccountNumber: customerAccountNumber || undefined,
+      kwhUsed,
+      amount,
+      periodStart,
+      periodEnd,
+    },
     errors: [],
   };
 }
 
 /**
- * POST /api/bills — create a bill.
+ * POST — record a bill against this establishment.
  * `upload.single("file")` runs first: it parses the optional file and the
  * text fields. Any multer error (too big, wrong type) is forwarded to the
- * error handler below.
+ * error handler in app.ts.
  */
-billsRouter.post("/", upload.single("file"), (req, res) => {
+billsRouter.post("/", upload.single("file"), async (req, res, next) => {
   const { input, errors } = parseBillInput(req.body);
   if (!input) {
     return res.status(400).json({ error: "VALIDATION_FAILED", details: errors });
   }
 
-  // If a file was attached, keep only its metadata for now.
+  // If a file was attached, keep only its metadata.
   const fileMeta: BillFileMeta | null = req.file
     ? {
         originalName: req.file.originalname,
@@ -125,48 +133,48 @@ billsRouter.post("/", upload.single("file"), (req, res) => {
       }
     : null;
 
-  const bill = createBill(req.user!.id, input, fileMeta);
-  return res.status(201).json(bill);
-});
+  const establishment = req.establishment!;
 
-/**
- * POST /api/bills/scan — OCR an uploaded image and return suggested fields.
- * This does NOT save a bill; it's a helper that lets the client pre-fill the
- * form. The user reviews/corrects the suggestions, then submits POST / to
- * actually store the bill. Returns 400 if no image was provided.
- */
-billsRouter.post("/scan", uploadImage.single("file"), async (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ error: "NO_IMAGE", message: "Attach a JPG or PNG image to scan." });
-  }
-  // Say so plainly rather than degrading to a worse reader: manual entry
-  // still works, so the user isn't blocked either way.
-  if (!isScanAvailable()) {
-    return res.status(503).json({
-      error: "SCAN_UNAVAILABLE",
-      message: "Bill scanning isn't configured. Enter the details manually.",
-    });
-  }
-  // Obtained via the factory so the model can change without touching this.
-  const scanner = getBillScanner();
   try {
-    const result = await scanner.scan(req.file.buffer, req.file.mimetype);
-    return res.json({ engine: scanner.name, ...result });
+    const bill = await createBill(
+      req.accessToken!,
+      establishment.id,
+      {
+        ...input,
+        // Statements almost always come from the establishment's own
+        // utility, so that is the default; the form only sends a provider
+        // when the bill names a different one.
+        providerId: input.providerId ?? establishment.providerId,
+      },
+      fileMeta,
+    );
+    return res.status(201).json(bill);
   } catch (err) {
-    // A scan failure isn't fatal — the web UI falls back to manual entry.
-    console.error(`[ocr] ${scanner.name} scan failed:`, err);
-    return res.status(502).json({ error: "SCAN_FAILED", message: "Could not read the image." });
+    return respondToStoreError(err, res, next, ERRORS);
   }
 });
 
-/** GET /api/bills — list every stored bill, newest first. */
-billsRouter.get("/", (req, res) => {
-  res.json(listBills(req.user!.id));
+/** GET — this establishment's bills, most recent period first. */
+billsRouter.get("/", async (req, res, next) => {
+  try {
+    res.json(await listBills(req.accessToken!, req.establishment!.id));
+  } catch (err) {
+    respondToStoreError(err, res, next, ERRORS);
+  }
 });
 
-/** GET /api/bills/:id — fetch one bill or 404. */
-billsRouter.get("/:id", (req, res) => {
-  const bill = getBill(req.user!.id, req.params.id);
-  if (!bill) return res.status(404).json({ error: "BILL_NOT_FOUND" });
-  return res.json(bill);
+/** GET /:id — one bill of this establishment's, or 404. */
+billsRouter.get("/:id", async (req, res, next) => {
+  // A malformed id would make Postgres raise rather than return no rows.
+  if (!isUuid(req.params.id)) {
+    return res.status(404).json({ error: "BILL_NOT_FOUND" });
+  }
+
+  try {
+    const bill = await getBill(req.accessToken!, req.establishment!.id, req.params.id);
+    if (!bill) return res.status(404).json({ error: "BILL_NOT_FOUND" });
+    return res.json(bill);
+  } catch (err) {
+    return respondToStoreError(err, res, next, ERRORS);
+  }
 });
